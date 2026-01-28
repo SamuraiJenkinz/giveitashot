@@ -1,6 +1,7 @@
 # Environment and secrets
 .env
 .token_cache.json
+.state.json
 
 # Python
 __pycache__/

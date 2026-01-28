@@ -1,13 +1,16 @@
 """
 Email Summarizer Agent - Main Entry Point
 
-Reads emails from an Exchange Online shared mailbox for the current day
-using Exchange Web Services (EWS), generates a summary, and sends it
-to a specified recipient.
+Reads emails from an Exchange Online shared mailbox using Exchange Web Services (EWS),
+generates a summary, and sends it to specified recipients.
+
+Supports incremental mode (default): only fetches emails since the last successful run.
+Use --full to fetch all emails from today instead.
 
 Usage:
     python -m src.main
-    python src/main.py
+    python -m src.main --full
+    python -m src.main --dry-run
 """
 
 import argparse
@@ -18,6 +21,7 @@ from datetime import datetime
 from .auth import EWSAuthenticator, AuthenticationError
 from .config import Config
 from .ews_client import EWSClient, EWSClientError
+from .state import StateManager
 from .summarizer import EmailSummarizer
 
 
@@ -63,6 +67,16 @@ def main() -> int:
         "--dry-run",
         action="store_true",
         help="Generate summary but don't send email"
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Fetch all emails from today (ignore last run time)"
+    )
+    parser.add_argument(
+        "--clear-state",
+        action="store_true",
+        help="Clear state file (forces full fetch on next run)"
     )
     args = parser.parse_args()
 
@@ -110,14 +124,33 @@ def main() -> int:
         logger.info("Initializing EWS client...")
         ews_client = EWSClient(credentials)
 
-        # Fetch today's emails from shared mailbox
-        logger.info(f"Fetching today's emails from {Config.SHARED_MAILBOX}...")
-        emails = ews_client.get_shared_mailbox_emails_today(Config.SHARED_MAILBOX)
+        # Initialize state manager for incremental fetching
+        state = StateManager()
+
+        # Handle --clear-state flag
+        if args.clear_state:
+            logger.info("Clearing state file...")
+            state.clear()
+
+        # Determine fetch mode (incremental vs full)
+        since = None
+        if args.full:
+            logger.info("Full mode: fetching all emails from today")
+        else:
+            since = state.get_last_run()
+            if since:
+                logger.info(f"Incremental mode: fetching emails since {since.isoformat()}")
+            else:
+                logger.info("No previous run found, fetching all emails from today")
+
+        # Fetch emails from shared mailbox
+        logger.info(f"Fetching emails from {Config.SHARED_MAILBOX}...")
+        emails = ews_client.get_shared_mailbox_emails(Config.SHARED_MAILBOX, since=since)
 
         if emails:
-            logger.info(f"Found {len(emails)} email(s) for today")
+            logger.info(f"Found {len(emails)} new email(s)")
         else:
-            logger.info("No emails found for today")
+            logger.info("No new emails found")
 
         # Generate summary
         logger.info("Generating email summary...")
@@ -158,6 +191,9 @@ def main() -> int:
                 bcc_recipients=Config.SUMMARY_BCC if Config.SUMMARY_BCC else None
             )
             logger.info("Summary email sent successfully!")
+
+            # Update state with current time for next incremental run
+            state.set_last_run()
 
         logger.info("=" * 60)
         logger.info("Email Summarizer Agent Completed Successfully")

@@ -112,20 +112,22 @@ class EWSClient:
         text = re.sub(r'\s+', ' ', text).strip()
         return text
 
-    def get_shared_mailbox_emails_today(
+    def get_shared_mailbox_emails(
         self,
         shared_mailbox: str,
+        since: datetime | None = None,
         max_emails: int = 100
     ) -> list[Email]:
         """
-        Get today's emails from a shared mailbox.
+        Get emails from a shared mailbox since a specified time.
 
         Args:
             shared_mailbox: Email address of the shared mailbox.
+            since: Fetch emails received after this datetime. If None, defaults to today at midnight.
             max_emails: Maximum number of emails to retrieve.
 
         Returns:
-            list[Email]: List of emails received today.
+            list[Email]: List of emails received since the specified time.
         """
         try:
             if self._shared_account is None:
@@ -133,19 +135,20 @@ class EWSClient:
 
             account = self._shared_account
 
-            # Calculate today's date at midnight in local timezone
+            # Use provided time or default to today at midnight
             tz = EWSTimeZone.localzone()
-            now = datetime.now(tz)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            if since is None:
+                now = datetime.now(tz)
+                since = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-            logger.info(f"Fetching emails received since {today_start.isoformat()}")
+            logger.info(f"Fetching emails received since {since.isoformat()}")
 
-            # Query inbox for today's emails
+            # Query inbox for emails since specified time
             inbox = account.inbox
 
-            # Filter emails received today, ordered by newest first
+            # Filter emails received since specified time, ordered by newest first
             emails_query = inbox.filter(
-                datetime_received__gte=today_start
+                datetime_received__gte=since
             ).order_by('-datetime_received')[:max_emails]
 
             all_emails = []

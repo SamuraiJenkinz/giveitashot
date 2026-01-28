@@ -146,15 +146,31 @@ python -m src.main
 | `--debug` | Enable debug logging |
 | `--clear-cache` | Clear cached credentials |
 | `--dry-run` | Generate summary but don't send email |
+| `--full` | Fetch all emails from today (ignore last run time) |
+| `--clear-state` | Clear state file (forces full fetch on next run) |
+
+### Incremental Mode (Default)
+
+By default, the agent only fetches emails received **since the last successful run**. This prevents duplicate summaries when running hourly.
+
+- State is stored in `.state.json` (auto-created)
+- After each successful send, the timestamp is updated
+- On first run (or after `--clear-state`), fetches all emails from today
 
 ### Examples
 
 ```bash
-# Run and send summary
+# Run incrementally (only new emails since last run)
 python -m src.main
 
-# Preview without sending
+# Fetch all emails from today (ignore state)
+python -m src.main --full
+
+# Preview without sending (does not update state)
 python -m src.main --dry-run
+
+# Reset state and fetch everything
+python -m src.main --clear-state
 
 # Debug mode
 python -m src.main --debug
