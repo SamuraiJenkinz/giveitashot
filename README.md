@@ -302,13 +302,69 @@ Add-RecipientPermission -Identity "messagingai@marsh.com" `
 **LLM unavailable**
 - The agent will fall back to basic summarization automatically
 
-## Scheduling (Optional)
+## Scheduling
 
-Use Windows Task Scheduler to run daily:
+Use the included deployment scripts to set up automated hourly execution.
+
+### Automated Setup (Recommended)
+
+```powershell
+# Run as Administrator
+.\deploy\setup_scheduled_task.ps1
+```
+
+This creates a Windows Scheduled Task that runs every hour, 24/7.
+
+### Configuration Options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-AppPath` | `C:\m365incidents` | Installation directory |
+| `-TaskName` | `M365EmailSummarizer` | Scheduled task name |
+| `-IntervalHours` | `1` | Hours between runs |
+| `-StartTime` | `00:00` | Initial start time |
+| `-RunNow` | - | Run immediately after setup |
+
+**Examples:**
+
+```powershell
+# Default: Run every hour
+.\deploy\setup_scheduled_task.ps1
+
+# Run every 2 hours
+.\deploy\setup_scheduled_task.ps1 -IntervalHours 2
+
+# Run every 30 minutes (use 0.5)
+.\deploy\setup_scheduled_task.ps1 -IntervalHours 0.5
+
+# Run immediately after setup
+.\deploy\setup_scheduled_task.ps1 -RunNow
+```
+
+### Management Commands
+
+```powershell
+# Check status
+.\deploy\manage_service.ps1 -Action status
+
+# Run manually
+.\deploy\manage_service.ps1 -Action run-now
+
+# View logs
+.\deploy\manage_service.ps1 -Action logs
+
+# Disable task
+.\deploy\manage_service.ps1 -Action stop
+
+# Remove task
+.\deploy\manage_service.ps1 -Action remove
+```
+
+### Manual Setup (Alternative)
 
 1. Open Task Scheduler
 2. Create new task
-3. Set trigger: Daily at preferred time
+3. Set trigger: Repeat every 1 hour indefinitely
 4. Set action:
    - Program: `C:\path\to\venv\Scripts\python.exe`
    - Arguments: `-m src.main`

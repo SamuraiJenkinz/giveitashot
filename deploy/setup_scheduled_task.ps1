@@ -5,7 +5,8 @@
 param(
     [string]$AppPath = "C:\m365incidents",
     [string]$TaskName = "M365EmailSummarizer",
-    [string]$RunTime = "08:00",
+    [string]$StartTime = "00:00",
+    [int]$IntervalHours = 1,
     [switch]$RunNow
 )
 
@@ -51,7 +52,8 @@ if (-not (Test-Path "$AppPath\.env")) {
 Write-Host "Configuration:" -ForegroundColor Green
 Write-Host "  App Path:  $AppPath"
 Write-Host "  Task Name: $TaskName"
-Write-Host "  Run Time:  $RunTime daily"
+Write-Host "  Interval:  Every $IntervalHours hour(s)"
+Write-Host "  Start:     $StartTime"
 Write-Host ""
 
 # Create logs directory
@@ -97,8 +99,12 @@ $action = New-ScheduledTaskAction `
     -Argument "/c `"$batchPath`" >> `"$logsPath\summarizer_%date:~-4,4%%date:~-10,2%%date:~-7,2%.log`" 2>&1" `
     -WorkingDirectory $AppPath
 
-# Create daily trigger at specified time
-$trigger = New-ScheduledTaskTrigger -Daily -At $RunTime
+# Create hourly trigger starting at specified time
+$trigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At $StartTime `
+    -RepetitionInterval (New-TimeSpan -Hours $IntervalHours) `
+    -RepetitionDuration ([TimeSpan]::MaxValue)
 
 # Run as SYSTEM account
 $principal = New-ScheduledTaskPrincipal `
@@ -123,10 +129,10 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Principal $principal `
     -Settings $settings `
-    -Description "M365 Email Summarizer - Daily email digest from shared mailbox" | Out-Null
+    -Description "M365 Email Summarizer - Hourly email digest from shared mailbox (every $IntervalHours hour(s))" | Out-Null
 
 Write-Host "Scheduled task created: $TaskName" -ForegroundColor Green
-Write-Host "  Runs daily at $RunTime" -ForegroundColor White
+Write-Host "  Runs every $IntervalHours hour(s)" -ForegroundColor White
 
 # Optionally run now
 if ($RunNow) {
@@ -144,7 +150,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "SUCCESS! Scheduled task configured" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "The email summarizer will run daily at $RunTime" -ForegroundColor Cyan
+Write-Host "The email summarizer will run every $IntervalHours hour(s)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Logs location: $logsPath" -ForegroundColor White
 Write-Host ""
@@ -154,5 +160,5 @@ Write-Host "  Status:   .\deploy\manage_service.ps1 -Action status"
 Write-Host "  Remove:   .\deploy\manage_service.ps1 -Action remove"
 Write-Host "  Logs:     Get-Content $logsPath\*.log -Tail 50"
 Write-Host ""
-Write-Host "To change schedule time, re-run with -RunTime parameter:" -ForegroundColor Yellow
-Write-Host "  .\deploy\setup_scheduled_task.ps1 -RunTime '09:30'" -ForegroundColor White
+Write-Host "To change interval, re-run with -IntervalHours parameter:" -ForegroundColor Yellow
+Write-Host "  .\deploy\setup_scheduled_task.ps1 -IntervalHours 2" -ForegroundColor White
