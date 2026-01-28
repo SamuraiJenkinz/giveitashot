@@ -40,8 +40,11 @@ class Config:
     # EWS Configuration
     EWS_SERVER: str = os.getenv("EWS_SERVER", "outlook.office365.com")
 
-    # User email for sending (the account to send from)
+    # User email for authentication (the account used to connect)
     USER_EMAIL: str = os.getenv("USER_EMAIL", "kevin.j.taylor@mmc.com")
+
+    # From address for sending (requires SendAs permission if different from USER_EMAIL)
+    SEND_FROM: str = os.getenv("SEND_FROM", "")
 
     # Email Configuration
     SHARED_MAILBOX: str = os.getenv("SHARED_MAILBOX", "messagingai@marsh.com")
@@ -69,6 +72,17 @@ class Config:
         elif cls.SUMMARY_RECIPIENT:
             return [cls.SUMMARY_RECIPIENT]
         return []
+
+    @classmethod
+    def get_send_from(cls) -> str:
+        """
+        Get the From address for sending emails.
+        Uses SEND_FROM if set, otherwise falls back to USER_EMAIL.
+
+        Returns:
+            Email address to use as the From address.
+        """
+        return cls.SEND_FROM if cls.SEND_FROM else cls.USER_EMAIL
 
     # Token cache file location
     TOKEN_CACHE_FILE: Path = Path(__file__).parent.parent / ".token_cache.json"

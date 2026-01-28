@@ -111,6 +111,9 @@ USER_EMAIL=your-email@company.com
 SHARED_MAILBOX=shared-mailbox@company.com
 EWS_SERVER=outlook.office365.com
 
+# SendAs - Optional: Send from a different address (requires SendAs permission)
+# SEND_FROM=shared-mailbox@company.com
+
 # Recipients - Option 1: Single recipient (simple)
 SUMMARY_RECIPIENT=recipient@company.com
 
@@ -219,6 +222,37 @@ SUMMARY_RECIPIENT=incident-team-dl@company.com
 ```
 
 **Note**: If `SUMMARY_TO` is set, it takes precedence over `SUMMARY_RECIPIENT`.
+
+## SendAs (Custom From Address)
+
+By default, summary emails are sent from `USER_EMAIL`. If you have **SendAs** permission on another mailbox (e.g., the shared mailbox), you can send emails that appear to come from that address.
+
+### Configuration
+
+```env
+USER_EMAIL=kevin.j.taylor@mmc.com      # Account used for authentication
+SEND_FROM=messagingai@marsh.com        # From address (requires SendAs permission)
+```
+
+### How It Works
+
+| Setting | Result |
+|---------|--------|
+| `SEND_FROM` not set | From: kevin.j.taylor@mmc.com |
+| `SEND_FROM=messagingai@marsh.com` | From: messagingai@marsh.com |
+
+### Granting SendAs Permission
+
+In Exchange Admin Center or PowerShell:
+
+```powershell
+# Grant SendAs permission
+Add-RecipientPermission -Identity "messagingai@marsh.com" `
+    -Trustee "kevin.j.taylor@mmc.com" `
+    -AccessRights SendAs
+```
+
+**Note**: SendAs permission may take up to 60 minutes to propagate.
 
 ## File Structure
 

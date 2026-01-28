@@ -81,6 +81,7 @@ def main() -> int:
         logger.info("Validating configuration...")
         Config.validate()
         logger.info(f"User account: {Config.USER_EMAIL}")
+        logger.info(f"Send from: {Config.get_send_from()}")
         logger.info(f"Shared mailbox: {Config.SHARED_MAILBOX}")
 
         # Log recipient configuration
@@ -133,6 +134,7 @@ def main() -> int:
             logger.info("DRY RUN - Not sending email")
             logger.info("-" * 40)
             logger.info("Summary Preview:")
+            logger.info(f"From: {Config.get_send_from()}")
             logger.info(f"To: {', '.join(to_recipients)}")
             if Config.SUMMARY_CC:
                 logger.info(f"CC: {', '.join(Config.SUMMARY_CC)}")

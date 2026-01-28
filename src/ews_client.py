@@ -240,8 +240,13 @@ class EWSClient:
             if not to_recipients:
                 raise EWSClientError("At least one TO recipient is required")
 
-            # Log recipient info
-            logger.info(f"Sending email from {Config.USER_EMAIL}")
+            # Get the From address (may differ from auth account if SendAs permission exists)
+            send_from = Config.get_send_from()
+
+            # Log sender and recipient info
+            logger.info(f"Sending email from {send_from}")
+            if send_from != Config.USER_EMAIL:
+                logger.info(f"  (using SendAs via {Config.USER_EMAIL})")
             logger.info(f"  TO: {', '.join(to_recipients)}")
             if cc_recipients:
                 logger.info(f"  CC: {', '.join(cc_recipients)}")
@@ -253,8 +258,10 @@ class EWSClient:
             cc_mailboxes = [Mailbox(email_address=email) for email in cc_recipients] if cc_recipients else None
             bcc_mailboxes = [Mailbox(email_address=email) for email in bcc_recipients] if bcc_recipients else None
 
+            # Build message with optional author (From address)
             message = Message(
                 account=account,
+                author=Mailbox(email_address=send_from),
                 subject=subject,
                 body=HTMLBody(body_html),
                 to_recipients=to_mailboxes,
