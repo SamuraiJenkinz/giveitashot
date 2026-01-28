@@ -150,7 +150,11 @@ def main() -> int:
         if emails:
             logger.info(f"Found {len(emails)} new email(s)")
         else:
-            logger.info("No new emails found")
+            logger.info("No new emails found - skipping summary")
+            logger.info("=" * 60)
+            logger.info("Email Summarizer Agent Completed (No New Emails)")
+            logger.info("=" * 60)
+            return 0
 
         # Generate summary
         logger.info("Generating email summary...")
