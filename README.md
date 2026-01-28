@@ -13,7 +13,7 @@ A Python script that reads emails from an Exchange Online shared mailbox for the
   - Smart categorization (Action Required, FYI, Meetings, Urgent, etc.)
 - Fallback to basic summarization if LLM unavailable
 - HTML-formatted email with professional styling
-- Sends summary email to specified recipient
+- Sends summary email to multiple recipients (TO/CC/BCC support)
 
 ## Prerequisites
 
@@ -109,8 +109,15 @@ AZURE_CLIENT_SECRET=your-client-secret
 # Email Configuration
 USER_EMAIL=your-email@company.com
 SHARED_MAILBOX=shared-mailbox@company.com
-SUMMARY_RECIPIENT=recipient@company.com
 EWS_SERVER=outlook.office365.com
+
+# Recipients - Option 1: Single recipient (simple)
+SUMMARY_RECIPIENT=recipient@company.com
+
+# Recipients - Option 2: Multiple with TO/CC/BCC
+# SUMMARY_TO=manager@company.com,team-lead@company.com
+# SUMMARY_CC=team@company.com
+# SUMMARY_BCC=archive@company.com
 
 # Azure OpenAI Configuration
 CHATGPT_ENDPOINT=https://your-openai-endpoint/chat/completions
@@ -177,6 +184,41 @@ Emails are automatically categorized:
 ### Disabling AI
 
 Set `USE_LLM_SUMMARY=false` to use basic text extraction instead.
+
+## Multiple Recipients
+
+The agent supports sending summaries to multiple recipients with full TO/CC/BCC support.
+
+### Option 1: Single Recipient (Simple)
+
+```env
+SUMMARY_RECIPIENT=manager@company.com
+```
+
+### Option 2: Multiple Recipients
+
+Use comma-separated values for multiple addresses:
+
+```env
+# Primary recipients (required)
+SUMMARY_TO=manager@company.com,team-lead@company.com
+
+# CC recipients (optional)
+SUMMARY_CC=team@company.com,stakeholder@company.com
+
+# BCC recipients (optional) - useful for archiving
+SUMMARY_BCC=archive@company.com,compliance@company.com
+```
+
+### Option 3: Distribution List
+
+Simply use a distribution list email address:
+
+```env
+SUMMARY_RECIPIENT=incident-team-dl@company.com
+```
+
+**Note**: If `SUMMARY_TO` is set, it takes precedence over `SUMMARY_RECIPIENT`.
 
 ## File Structure
 

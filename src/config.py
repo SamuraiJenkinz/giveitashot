@@ -12,6 +12,23 @@ env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(env_path)
 
 
+def _parse_email_list(env_var: str, default: str = "") -> list[str]:
+    """
+    Parse a comma-separated list of email addresses from an environment variable.
+
+    Args:
+        env_var: Name of the environment variable.
+        default: Default value if env var is not set.
+
+    Returns:
+        List of email addresses (stripped of whitespace), empty strings filtered out.
+    """
+    value = os.getenv(env_var, default)
+    if not value:
+        return []
+    return [email.strip() for email in value.split(",") if email.strip()]
+
+
 class Config:
     """Application configuration loaded from environment variables."""
 
@@ -28,7 +45,30 @@ class Config:
 
     # Email Configuration
     SHARED_MAILBOX: str = os.getenv("SHARED_MAILBOX", "messagingai@marsh.com")
+
+    # Legacy single recipient (for backwards compatibility)
     SUMMARY_RECIPIENT: str = os.getenv("SUMMARY_RECIPIENT", "kevin.j.taylor@mmc.com")
+
+    # Multiple recipients support (TO, CC, BCC)
+    # These take precedence over SUMMARY_RECIPIENT if set
+    SUMMARY_TO: list[str] = _parse_email_list("SUMMARY_TO")
+    SUMMARY_CC: list[str] = _parse_email_list("SUMMARY_CC")
+    SUMMARY_BCC: list[str] = _parse_email_list("SUMMARY_BCC")
+
+    @classmethod
+    def get_recipients(cls) -> list[str]:
+        """
+        Get the list of TO recipients.
+        Uses SUMMARY_TO if set, otherwise falls back to SUMMARY_RECIPIENT.
+
+        Returns:
+            List of TO recipient email addresses.
+        """
+        if cls.SUMMARY_TO:
+            return cls.SUMMARY_TO
+        elif cls.SUMMARY_RECIPIENT:
+            return [cls.SUMMARY_RECIPIENT]
+        return []
 
     # Token cache file location
     TOKEN_CACHE_FILE: Path = Path(__file__).parent.parent / ".token_cache.json"
@@ -62,6 +102,13 @@ class Config:
             raise ValueError(
                 f"Missing required environment variables: {', '.join(missing)}. "
                 f"Please copy .env.example to .env and fill in your values."
+            )
+
+        # Validate at least one recipient is configured
+        if not cls.get_recipients():
+            raise ValueError(
+                "No email recipients configured. "
+                "Set either SUMMARY_RECIPIENT or SUMMARY_TO in your .env file."
             )
 
     @classmethod

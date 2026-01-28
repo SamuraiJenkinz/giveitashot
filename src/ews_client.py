@@ -205,17 +205,21 @@ class EWSClient:
 
     def send_email(
         self,
-        to_email: str,
+        to_recipients: list[str] | str,
         subject: str,
-        body_html: str
+        body_html: str,
+        cc_recipients: list[str] | None = None,
+        bcc_recipients: list[str] | None = None
     ) -> None:
         """
         Send an email using impersonation.
 
         Args:
-            to_email: Recipient email address.
+            to_recipients: Recipient email address(es). Can be a single string or list.
             subject: Email subject.
             body_html: HTML body content.
+            cc_recipients: Optional list of CC recipient email addresses.
+            bcc_recipients: Optional list of BCC recipient email addresses.
         """
         try:
             # Use the configured user email to send
@@ -224,13 +228,38 @@ class EWSClient:
 
             account = self._sender_account
 
-            logger.info(f"Sending email from {Config.USER_EMAIL} to {to_email}")
+            # Normalize to_recipients to a list
+            if isinstance(to_recipients, str):
+                to_recipients = [to_recipients]
+
+            # Filter out empty strings
+            to_recipients = [r for r in to_recipients if r]
+            cc_recipients = [r for r in (cc_recipients or []) if r]
+            bcc_recipients = [r for r in (bcc_recipients or []) if r]
+
+            if not to_recipients:
+                raise EWSClientError("At least one TO recipient is required")
+
+            # Log recipient info
+            logger.info(f"Sending email from {Config.USER_EMAIL}")
+            logger.info(f"  TO: {', '.join(to_recipients)}")
+            if cc_recipients:
+                logger.info(f"  CC: {', '.join(cc_recipients)}")
+            if bcc_recipients:
+                logger.info(f"  BCC: {', '.join(bcc_recipients)}")
+
+            # Build recipient lists
+            to_mailboxes = [Mailbox(email_address=email) for email in to_recipients]
+            cc_mailboxes = [Mailbox(email_address=email) for email in cc_recipients] if cc_recipients else None
+            bcc_mailboxes = [Mailbox(email_address=email) for email in bcc_recipients] if bcc_recipients else None
 
             message = Message(
                 account=account,
                 subject=subject,
                 body=HTMLBody(body_html),
-                to_recipients=[Mailbox(email_address=to_email)]
+                to_recipients=to_mailboxes,
+                cc_recipients=cc_mailboxes,
+                bcc_recipients=bcc_mailboxes
             )
 
             message.send_and_save()

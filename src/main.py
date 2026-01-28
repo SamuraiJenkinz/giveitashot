@@ -82,7 +82,14 @@ def main() -> int:
         Config.validate()
         logger.info(f"User account: {Config.USER_EMAIL}")
         logger.info(f"Shared mailbox: {Config.SHARED_MAILBOX}")
-        logger.info(f"Summary recipient: {Config.SUMMARY_RECIPIENT}")
+
+        # Log recipient configuration
+        to_recipients = Config.get_recipients()
+        logger.info(f"Summary TO: {', '.join(to_recipients)}")
+        if Config.SUMMARY_CC:
+            logger.info(f"Summary CC: {', '.join(Config.SUMMARY_CC)}")
+        if Config.SUMMARY_BCC:
+            logger.info(f"Summary BCC: {', '.join(Config.SUMMARY_BCC)}")
 
         # Initialize authenticator
         logger.info("Initializing authentication...")
@@ -126,7 +133,11 @@ def main() -> int:
             logger.info("DRY RUN - Not sending email")
             logger.info("-" * 40)
             logger.info("Summary Preview:")
-            logger.info(f"To: {Config.SUMMARY_RECIPIENT}")
+            logger.info(f"To: {', '.join(to_recipients)}")
+            if Config.SUMMARY_CC:
+                logger.info(f"CC: {', '.join(Config.SUMMARY_CC)}")
+            if Config.SUMMARY_BCC:
+                logger.info(f"BCC: {', '.join(Config.SUMMARY_BCC)}")
             logger.info(f"Subject: {subject}")
             logger.info(f"Emails summarized: {summary.total_count}")
             if summary.total_count > 0:
@@ -136,11 +147,13 @@ def main() -> int:
             logger.info("-" * 40)
         else:
             # Send the summary email
-            logger.info(f"Sending summary to {Config.SUMMARY_RECIPIENT}...")
+            logger.info(f"Sending summary to {len(to_recipients)} recipient(s)...")
             ews_client.send_email(
-                to_email=Config.SUMMARY_RECIPIENT,
+                to_recipients=to_recipients,
                 subject=subject,
-                body_html=body_html
+                body_html=body_html,
+                cc_recipients=Config.SUMMARY_CC if Config.SUMMARY_CC else None,
+                bcc_recipients=Config.SUMMARY_BCC if Config.SUMMARY_BCC else None
             )
             logger.info("Summary email sent successfully!")
 
