@@ -63,23 +63,30 @@ if (-not (Test-Path $logsPath)) {
     Write-Host "Created logs directory: $logsPath" -ForegroundColor Green
 }
 
-# Create startup batch script
-$timestamp = '$(Get-Date -Format "yyyy-MM-dd_HH-mm-ss")'
+# Create startup batch script with reliable logging
 $batchScript = @"
 @echo off
 cd /d $AppPath
-echo ========================================
-echo M365 Email Summarizer - Starting
-echo %date% %time%
-echo ========================================
+
+REM Generate timestamp using wmic (locale-independent)
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
+set LOGFILE=$AppPath\logs\summarizer_%datetime:~0,8%_%datetime:~8,6%.log
+
+echo ======================================== >> "%LOGFILE%"
+echo M365 Email Summarizer - Starting >> "%LOGFILE%"
+echo %date% %time% >> "%LOGFILE%"
+echo ======================================== >> "%LOGFILE%"
 
 call venv\Scripts\activate.bat
-python -m src.main
+python -m src.main >> "%LOGFILE%" 2>&1
+set EXITCODE=%ERRORLEVEL%
 
-echo ========================================
-echo Completed: %date% %time%
-echo Exit Code: %ERRORLEVEL%
-echo ========================================
+echo ======================================== >> "%LOGFILE%"
+echo Completed: %date% %time% >> "%LOGFILE%"
+echo Exit Code: %EXITCODE% >> "%LOGFILE%"
+echo ======================================== >> "%LOGFILE%"
+
+exit /b %EXITCODE%
 "@
 
 $batchPath = "$AppPath\run_summarizer.bat"
@@ -93,10 +100,10 @@ if ($existingTask) {
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 }
 
-# Create scheduled task action
+# Create scheduled task action (logging handled by batch file)
 $action = New-ScheduledTaskAction `
     -Execute "cmd.exe" `
-    -Argument "/c `"$batchPath`" >> `"$logsPath\summarizer_%date:~-4,4%%date:~-10,2%%date:~-7,2%.log`" 2>&1" `
+    -Argument "/c `"$batchPath`"" `
     -WorkingDirectory $AppPath
 
 # Create hourly trigger starting at specified time
