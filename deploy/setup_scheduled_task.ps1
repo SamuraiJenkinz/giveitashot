@@ -100,11 +100,12 @@ $action = New-ScheduledTaskAction `
     -WorkingDirectory $AppPath
 
 # Create hourly trigger starting at specified time
+# Note: Using 9999 days instead of [TimeSpan]::MaxValue to avoid XML duration overflow on some Windows versions
 $trigger = New-ScheduledTaskTrigger `
     -Once `
     -At $StartTime `
     -RepetitionInterval (New-TimeSpan -Hours $IntervalHours) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)
+    -RepetitionDuration (New-TimeSpan -Days 9999)
 
 # Run as SYSTEM account
 $principal = New-ScheduledTaskPrincipal `
