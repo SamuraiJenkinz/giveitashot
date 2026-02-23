@@ -67,24 +67,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DETECT-01 | TBD | Pending |
-| DETECT-02 | TBD | Pending |
-| DIGEST-01 | TBD | Pending |
-| DIGEST-02 | TBD | Pending |
-| DIGEST-03 | TBD | Pending |
-| DIGEST-04 | TBD | Pending |
-| DIGEST-05 | TBD | Pending |
-| DIGEST-06 | TBD | Pending |
-| DIGEST-07 | TBD | Pending |
-| DIGEST-08 | TBD | Pending |
-| AI-01 | TBD | Pending |
-| AI-02 | TBD | Pending |
+| DETECT-01 | Phase 1 | Pending |
+| DETECT-02 | Phase 1 | Pending |
+| DIGEST-01 | Phase 3 | Pending |
+| DIGEST-02 | Phase 3 | Pending |
+| DIGEST-03 | Phase 3 | Pending |
+| DIGEST-04 | Phase 3 | Pending |
+| DIGEST-05 | Phase 3 | Pending |
+| DIGEST-06 | Phase 3 | Pending |
+| DIGEST-07 | Phase 3 | Pending |
+| DIGEST-08 | Phase 2 | Pending |
+| AI-01 | Phase 4 | Pending |
+| AI-02 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
+
+**Coverage Validation:**
+- Phase 1: 2 requirements (DETECT-01, DETECT-02)
+- Phase 2: 1 requirement (DIGEST-08)
+- Phase 3: 7 requirements (DIGEST-01 through DIGEST-07)
+- Phase 4: 2 requirements (AI-01, AI-02)
+- Phase 5: Integration testing (validates all requirements end-to-end)
+
+✓ 100% requirement coverage achieved
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial definition*
+*Last updated: 2026-02-23 after roadmap creation*
