@@ -29,10 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Detected major update emails are excluded from regular digest without breaking existing workflow
   3. Detection logging shows confidence scores and matched signals for operational monitoring
   4. Classification errors are recoverable without disrupting hourly scheduled runs
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md -- EmailClassifier module with multi-signal weighted detection and unit tests
+- [ ] 01-02-PLAN.md -- Pipeline integration: wire classifier into main.py, exclude major updates from regular digest
 
 ### Phase 2: Configuration and State Management
 **Goal**: Infrastructure supports dual-digest workflows with separate recipients and independent state tracking
@@ -99,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Detection Foundation | 0/1 | Not started | - |
+| 1. Detection Foundation | 0/2 | Not started | - |
 | 2. Configuration and State Management | 0/1 | Not started | - |
 | 3. Digest Content Extraction | 0/1 | Not started | - |
 | 4. AI Enhancement | 0/1 | Not started | - |
