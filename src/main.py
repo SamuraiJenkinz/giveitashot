@@ -22,6 +22,7 @@ from .auth import EWSAuthenticator, AuthenticationError
 from .classifier import EmailClassifier
 from .config import Config
 from .ews_client import EWSClient, EWSClientError
+from .extractor import MessageCenterExtractor
 from .state import StateManager
 from .summarizer import EmailSummarizer
 
@@ -178,70 +179,130 @@ def main() -> int:
             regular_emails = emails
             major_update_emails = []
 
-        if major_update_emails:
-            logger.info("Major updates detected (will be processed in future digest):")
-            for mu_email in major_update_emails:
-                logger.info(f"  - {mu_email.subject}")
-
-        if not regular_emails:
-            if major_update_emails:
-                logger.info(f"No regular emails to summarize ({len(major_update_emails)} major update(s) detected, digest pending Phase 2)")
+        # Regular digest processing (skip if --major-only)
+        if not args.major_only:
+            if not regular_emails:
+                if major_update_emails:
+                    logger.info(f"No regular emails to summarize ({len(major_update_emails)} major update(s) detected)")
+                else:
+                    logger.info("No new emails found - skipping summary")
+                    logger.info("=" * 60)
+                    logger.info("Email Summarizer Agent Completed (No New Emails)")
+                    logger.info("=" * 60)
+                    return 0
             else:
-                logger.info("No new emails found - skipping summary")
-            logger.info("=" * 60)
-            logger.info("Email Summarizer Agent Completed (No New Emails)")
-            logger.info("=" * 60)
-            return 0
+                # Generate summary
+                logger.info("Generating email summary...")
+                summarizer = EmailSummarizer()
+                summary = summarizer.summarize_emails(regular_emails)
 
-        # Generate summary
-        logger.info("Generating email summary...")
-        summarizer = EmailSummarizer()
-        summary = summarizer.summarize_emails(regular_emails)
+                # Format the summary
+                subject = summarizer.get_subject_line(summary, Config.SHARED_MAILBOX)
+                body_html = summarizer.format_summary_html(summary, Config.SHARED_MAILBOX)
 
-        # Format the summary
-        subject = summarizer.get_subject_line(summary, Config.SHARED_MAILBOX)
-        body_html = summarizer.format_summary_html(summary, Config.SHARED_MAILBOX)
+                logger.info(f"Summary subject: {subject}")
 
-        logger.info(f"Summary subject: {subject}")
+                if args.dry_run:
+                    logger.info("DRY RUN - Not sending regular digest email")
+                    logger.info("-" * 40)
+                    logger.info("Regular Digest Preview:")
+                    logger.info(f"From: {Config.get_send_from()}")
+                    logger.info(f"To: {', '.join(to_recipients)}")
+                    if Config.SUMMARY_CC:
+                        logger.info(f"CC: {', '.join(Config.SUMMARY_CC)}")
+                    if Config.SUMMARY_BCC:
+                        logger.info(f"BCC: {', '.join(Config.SUMMARY_BCC)}")
+                    logger.info(f"Subject: {subject}")
+                    logger.info(f"Emails summarized: {summary.total_count}")
+                    if summary.total_count > 0:
+                        logger.info("Email subjects:")
+                        for email_summary in summary.email_summaries:
+                            logger.info(f"  - {email_summary.subject}")
+                    logger.info("-" * 40)
+                else:
+                    # Send the summary email
+                    logger.info(f"Sending regular digest to {len(to_recipients)} recipient(s)...")
+                    ews_client.send_email(
+                        to_recipients=to_recipients,
+                        subject=subject,
+                        body_html=body_html,
+                        cc_recipients=Config.SUMMARY_CC if Config.SUMMARY_CC else None,
+                        bcc_recipients=Config.SUMMARY_BCC if Config.SUMMARY_BCC else None
+                    )
+                    logger.info("Regular digest email sent successfully!")
 
-        if args.dry_run:
-            logger.info("DRY RUN - Not sending email")
-            logger.info("-" * 40)
-            logger.info("Summary Preview:")
-            logger.info(f"From: {Config.get_send_from()}")
-            logger.info(f"To: {', '.join(to_recipients)}")
-            if Config.SUMMARY_CC:
-                logger.info(f"CC: {', '.join(Config.SUMMARY_CC)}")
-            if Config.SUMMARY_BCC:
-                logger.info(f"BCC: {', '.join(Config.SUMMARY_BCC)}")
-            logger.info(f"Subject: {subject}")
-            logger.info(f"Emails summarized: {summary.total_count}")
-            if summary.total_count > 0:
-                logger.info("Email subjects:")
-                for email_summary in summary.email_summaries:
-                    logger.info(f"  - {email_summary.subject}")
+                    # Update state with current time for next incremental run
+                    state.set_last_run(digest_type="regular")
+
+        # Major digest processing (skip if --regular-only)
+        if not args.regular_only:
             if major_update_emails:
-                logger.info(f"Major Updates (not in digest): {len(major_update_emails)}")
-                for mu_email in major_update_emails:
-                    logger.info(f"  - {mu_email.subject}")
-            # Preview major digest config status
-            if hasattr(Config, 'is_major_digest_enabled') and Config.is_major_digest_enabled():
-                logger.info(f"Major digest: enabled ({len(Config.MAJOR_UPDATE_TO)} TO recipient(s))")
-            logger.info("-" * 40)
-        else:
-            # Send the summary email
-            logger.info(f"Sending summary to {len(to_recipients)} recipient(s)...")
-            ews_client.send_email(
-                to_recipients=to_recipients,
-                subject=subject,
-                body_html=body_html,
-                cc_recipients=Config.SUMMARY_CC if Config.SUMMARY_CC else None,
-                bcc_recipients=Config.SUMMARY_BCC if Config.SUMMARY_BCC else None
-            )
-            logger.info("Summary email sent successfully!")
+                # Check if major digest is enabled
+                if not Config.is_major_digest_enabled():
+                    logger.info("Major updates detected but major digest not enabled (MAJOR_UPDATE_TO not configured)")
+                else:
+                    try:
+                        logger.info(f"Processing {len(major_update_emails)} major update(s)...")
 
-            # Update state with current time for next incremental run
-            state.set_last_run(digest_type="regular")
+                        # Extract fields from major updates
+                        extractor = MessageCenterExtractor()
+                        major_fields = extractor.extract_batch(major_update_emails)
+                        major_fields = extractor.deduplicate(major_fields)
+
+                        if not major_fields:
+                            logger.info("No major updates to digest after deduplication")
+                        else:
+                            # Format HTML and subject
+                            if not args.major_only:
+                                summarizer = EmailSummarizer()
+                            major_html = summarizer.format_major_updates_html(major_fields)
+                            major_subject = summarizer.get_major_subject_line(major_fields)
+
+                            logger.info(f"Major digest subject: {major_subject}")
+
+                            if args.dry_run:
+                                logger.info("DRY RUN - Not sending major digest email")
+                                logger.info("-" * 40)
+                                logger.info("Major Digest Preview:")
+                                major_recipients = Config.get_major_recipients()
+                                logger.info(f"From: {Config.get_send_from()}")
+                                logger.info(f"To: {', '.join(major_recipients)}")
+                                if Config.MAJOR_UPDATE_CC:
+                                    logger.info(f"CC: {', '.join(Config.MAJOR_UPDATE_CC)}")
+                                if Config.MAJOR_UPDATE_BCC:
+                                    logger.info(f"BCC: {', '.join(Config.MAJOR_UPDATE_BCC)}")
+                                logger.info(f"Subject: {major_subject}")
+                                logger.info(f"Updates: {len(major_fields)}")
+                                # Count by urgency
+                                from .extractor import UrgencyTier
+                                critical = sum(1 for u in major_fields if u.urgency == UrgencyTier.CRITICAL)
+                                high = sum(1 for u in major_fields if u.urgency == UrgencyTier.HIGH)
+                                normal = sum(1 for u in major_fields if u.urgency == UrgencyTier.NORMAL)
+                                logger.info(f"Urgency breakdown: {critical} Critical, {high} High, {normal} Normal")
+                                logger.info("MC IDs:")
+                                for update in major_fields:
+                                    mc_id = update.mc_id or "MC######"
+                                    logger.info(f"  - {mc_id}")
+                                logger.info("-" * 40)
+                            else:
+                                # Send the major digest email
+                                major_recipients = Config.get_major_recipients()
+                                logger.info(f"Sending major digest to {len(major_recipients)} recipient(s)...")
+                                ews_client.send_email(
+                                    to_recipients=major_recipients,
+                                    subject=major_subject,
+                                    body_html=major_html,
+                                    cc_recipients=Config.MAJOR_UPDATE_CC if Config.MAJOR_UPDATE_CC else None,
+                                    bcc_recipients=Config.MAJOR_UPDATE_BCC if Config.MAJOR_UPDATE_BCC else None
+                                )
+                                logger.info("Major digest email sent successfully!")
+
+                                # Update state for major digest
+                                state.set_last_run(digest_type="major")
+
+                    except Exception as e:
+                        logger.error(f"Major digest failed: {e}")
+                        # Don't crash - regular digest may have already been sent
 
         logger.info("=" * 60)
         logger.info("Email Summarizer Agent Completed Successfully")
