@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIGEST-05 | Phase 3 | Pending |
 | DIGEST-06 | Phase 3 | Pending |
 | DIGEST-07 | Phase 3 | Pending |
-| DIGEST-08 | Phase 2 | Pending |
+| DIGEST-08 | Phase 2 | Complete |
 | AI-01 | Phase 4 | Pending |
 | AI-02 | Phase 4 | Pending |
 
