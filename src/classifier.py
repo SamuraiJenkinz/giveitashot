@@ -109,6 +109,8 @@ class EmailClassifier:
 
         for email in emails:
             result = self.classify(email)
+            # Attach classification result to email
+            email.classification = result
             if result.is_major_update:
                 major_update_emails.append(email)
             else:
