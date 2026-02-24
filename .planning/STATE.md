@@ -10,28 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 5 (Configuration and State Management)
-Plan: None (ready to plan)
-Status: Ready to plan
-Last activity: 2026-02-24 — Phase 1 (Detection Foundation) verified and complete
+Plan: 1 of 3 (Major Update Digest Config)
+Status: In progress
+Last activity: 2026-02-24 — Completed 02-01-PLAN.md (Major Update Digest Configuration)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 3.5 minutes
-- Total execution time: 0.12 hours
+- Total plans completed: 3
+- Average duration: 3 minutes
+- Total execution time: 0.15 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Detection Foundation | 2/2 | 0.12h | 4 min |
+| 2. Configuration and State | 1/3 | 0.03h | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3m), 01-02 (4m)
-- Trend: Phase 1 complete
+- Last 5 plans: 01-01 (3m), 01-02 (4m), 02-01 (2m)
+- Trend: Phase 2 started, consistent velocity
 
 *Updated after each plan completion*
 
@@ -52,6 +53,9 @@ Recent decisions affecting current work:
 - Classification field Optional[Any] (01-02) — Avoid circular imports by using Any type for Email.classification
 - Classification fallback all regular (01-02) — Classification failure treats all emails as regular (non-blocking)
 - Attach classification to Email (01-02) — EmailClassifier.classify_batch sets classification field on Email objects
+- Presence-based feature toggle (02-01) — MAJOR_UPDATE_TO non-empty activates major digest without separate ENABLE flag
+- No fallback MAJOR_UPDATE_TO to SUMMARY_TO (02-01) — Different audiences require explicit configuration
+- Validate major digest only when enabled (02-01) — Empty MAJOR_UPDATE_TO means feature unused, invalid CC/BCC irrelevant
 
 ### Pending Todos
 
@@ -71,6 +75,16 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (phase 1 execution complete)
-Stopped at: Phase 1 verified (5/5 must-haves, 26/26 tests), ready for Phase 2 planning
+Last session: 2026-02-24 (phase 2 plan 1 execution complete)
+Stopped at: Completed 02-01-PLAN.md (major digest config), ready for 02-02
 Resume file: None
+
+Config (if exists):
+{
+  "model_profile": "balanced",
+  "commit_docs": true,
+  "workflow": {
+    "auto_commit": true,
+    "verification_required": true
+  }
+}
