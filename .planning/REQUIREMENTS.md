@@ -9,8 +9,8 @@ Requirements for milestone v1.0 Major Updates Digest. Each maps to roadmap phase
 
 ### Detection & Filtering
 
-- [ ] **DETECT-01**: System detects M365 Message Center major update emails in shared mailbox using multi-signal detection (sender pattern, subject structure, body markers, Message ID regex)
-- [ ] **DETECT-02**: Detected major update emails are excluded from the regular email digest
+- [x] **DETECT-01**: System detects M365 Message Center major update emails in shared mailbox using multi-signal detection (sender pattern, subject structure, body markers, Message ID regex)
+- [x] **DETECT-02**: Detected major update emails are excluded from the regular email digest
 
 ### Digest Content
 
@@ -67,8 +67,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DETECT-01 | Phase 1 | Pending |
-| DETECT-02 | Phase 1 | Pending |
+| DETECT-01 | Phase 1 | Complete |
+| DETECT-02 | Phase 1 | Complete |
 | DIGEST-01 | Phase 3 | Pending |
 | DIGEST-02 | Phase 3 | Pending |
 | DIGEST-03 | Phase 3 | Pending |
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after roadmap creation*
+*Last updated: 2026-02-24 after Phase 1 completion*

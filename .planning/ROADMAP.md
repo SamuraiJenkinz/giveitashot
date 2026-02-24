@@ -12,7 +12,7 @@ This milestone extends InboxIQ with a dual-digest system: detect M365 Message Ce
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Detection Foundation** - Multi-signal email classification with Message Center pattern matching
+- [x] **Phase 1: Detection Foundation** - Multi-signal email classification with Message Center pattern matching
 - [ ] **Phase 2: Configuration and State Management** - Dual-digest infrastructure with separate recipients and state tracking
 - [ ] **Phase 3: Digest Content Extraction** - HTML formatting with Message Center-specific fields
 - [ ] **Phase 4: AI Enhancement** - Admin action extraction and deadline countdown
@@ -32,8 +32,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- EmailClassifier module with multi-signal weighted detection and unit tests
-- [ ] 01-02-PLAN.md -- Pipeline integration: wire classifier into main.py, exclude major updates from regular digest
+- [x] 01-01-PLAN.md -- EmailClassifier module with multi-signal weighted detection and unit tests
+- [x] 01-02-PLAN.md -- Pipeline integration: wire classifier into main.py, exclude major updates from regular digest
 
 ### Phase 2: Configuration and State Management
 **Goal**: Infrastructure supports dual-digest workflows with separate recipients and independent state tracking
@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Detection Foundation | 0/2 | Not started | - |
+| 1. Detection Foundation | 2/2 | Complete | 2026-02-24 |
 | 2. Configuration and State Management | 0/1 | Not started | - |
 | 3. Digest Content Extraction | 0/1 | Not started | - |
 | 4. AI Enhancement | 0/1 | Not started | - |
@@ -108,4 +108,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 ---
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-23*
+*Last updated: 2026-02-24*
