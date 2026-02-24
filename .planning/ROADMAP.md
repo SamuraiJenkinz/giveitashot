@@ -44,10 +44,11 @@ Plans:
   2. StateManager tracks separate last_run timestamps for regular and major update digests
   3. Configuration validation catches missing or invalid MAJOR_UPDATE_* settings before runtime
   4. State corruption in one digest type does not affect the other (independent state updates)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md -- Major update recipient config, feature toggle, validation, and .env.example
+- [ ] 02-02-PLAN.md -- Digest-type-aware state management, migration, and CLI flags
 
 ### Phase 3: Digest Content Extraction
 **Goal**: Major updates digest displays all essential Message Center information in professional HTML format
@@ -101,7 +102,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Detection Foundation | 2/2 | Complete | 2026-02-24 |
-| 2. Configuration and State Management | 0/1 | Not started | - |
+| 2. Configuration and State Management | 0/2 | Not started | - |
 | 3. Digest Content Extraction | 0/1 | Not started | - |
 | 4. AI Enhancement | 0/1 | Not started | - |
 | 5. Integration Testing | 0/1 | Not started | - |
