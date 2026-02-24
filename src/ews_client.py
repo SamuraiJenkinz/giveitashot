@@ -7,7 +7,7 @@ Uses app-only authentication with impersonation.
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 from html import unescape
 import re
 
@@ -38,12 +38,20 @@ class Email:
     body_preview: str
     body_content: str
     has_attachments: bool
+    classification: Optional[Any] = None  # Set by EmailClassifier post-fetch
 
     @property
     def received_time_local(self) -> str:
         """Get the received time in local timezone as a formatted string."""
         local_time = self.received_datetime.astimezone()
         return local_time.strftime("%I:%M %p")
+
+    @property
+    def is_major_update(self) -> bool:
+        """Check if email is classified as a major update."""
+        if self.classification is None:
+            return False
+        return self.classification.is_major_update
 
 
 class EWSClientError(Exception):

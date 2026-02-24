@@ -19,6 +19,7 @@ import sys
 from datetime import datetime
 
 from .auth import EWSAuthenticator, AuthenticationError
+from .classifier import EmailClassifier
 from .config import Config
 from .ews_client import EWSClient, EWSClientError
 from .state import StateManager
@@ -147,10 +148,36 @@ def main() -> int:
         logger.info(f"Fetching emails from {Config.SHARED_MAILBOX}...")
         emails = ews_client.get_shared_mailbox_emails(Config.SHARED_MAILBOX, since=since)
 
-        if emails:
-            logger.info(f"Found {len(emails)} new email(s)")
-        else:
+        if not emails:
             logger.info("No new emails found - skipping summary")
+            logger.info("=" * 60)
+            logger.info("Email Summarizer Agent Completed (No New Emails)")
+            logger.info("=" * 60)
+            return 0
+
+        logger.info(f"Found {len(emails)} email(s)")
+
+        # Classify emails to detect Message Center major updates
+        logger.info("Classifying emails...")
+        classifier = EmailClassifier()
+        try:
+            regular_emails, major_update_emails = classifier.classify_batch(emails)
+            logger.info(f"Classification: {len(regular_emails)} regular, {len(major_update_emails)} major updates")
+        except Exception as e:
+            logger.warning(f"Classification failed, treating all as regular: {e}")
+            regular_emails = emails
+            major_update_emails = []
+
+        if major_update_emails:
+            logger.info("Major updates detected (will be processed in future digest):")
+            for mu_email in major_update_emails:
+                logger.info(f"  - {mu_email.subject}")
+
+        if not regular_emails:
+            if major_update_emails:
+                logger.info(f"No regular emails to summarize ({len(major_update_emails)} major update(s) detected, digest pending Phase 2)")
+            else:
+                logger.info("No new emails found - skipping summary")
             logger.info("=" * 60)
             logger.info("Email Summarizer Agent Completed (No New Emails)")
             logger.info("=" * 60)
@@ -159,7 +186,7 @@ def main() -> int:
         # Generate summary
         logger.info("Generating email summary...")
         summarizer = EmailSummarizer()
-        summary = summarizer.summarize_emails(emails)
+        summary = summarizer.summarize_emails(regular_emails)
 
         # Format the summary
         subject = summarizer.get_subject_line(summary, Config.SHARED_MAILBOX)
@@ -183,6 +210,10 @@ def main() -> int:
                 logger.info("Email subjects:")
                 for email_summary in summary.email_summaries:
                     logger.info(f"  - {email_summary.subject}")
+            if major_update_emails:
+                logger.info(f"Major Updates (not in digest): {len(major_update_emails)}")
+                for mu_email in major_update_emails:
+                    logger.info(f"  - {mu_email.subject}")
             logger.info("-" * 40)
         else:
             # Send the summary email
