@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 5 (Configuration and State Management)
-Plan: 1 of 3 (Major Update Digest Config)
+Plan: 2 of 3 (Digest-Type-Aware State)
 Status: In progress
-Last activity: 2026-02-24 — Completed 02-01-PLAN.md (Major Update Digest Configuration)
+Last activity: 2026-02-24 — Completed 02-02-PLAN.md (Digest-Type-Aware State Management)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3 minutes
-- Total execution time: 0.15 hours
+- Total plans completed: 4
+- Average duration: 4.1 minutes
+- Total execution time: 0.27 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Detection Foundation | 2/2 | 0.12h | 4 min |
-| 2. Configuration and State | 1/3 | 0.03h | 2 min |
+| 2. Configuration and State | 2/3 | 0.15h | 4.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3m), 01-02 (4m), 02-01 (2m)
-- Trend: Phase 2 started, consistent velocity
+- Last 5 plans: 01-01 (3m), 01-02 (4m), 02-01 (2m), 02-02 (7m)
+- Trend: Phase 2 progressing, test-heavy plans take longer
 
 *Updated after each plan completion*
 
@@ -56,6 +56,12 @@ Recent decisions affecting current work:
 - Presence-based feature toggle (02-01) — MAJOR_UPDATE_TO non-empty activates major digest without separate ENABLE flag
 - No fallback MAJOR_UPDATE_TO to SUMMARY_TO (02-01) — Different audiences require explicit configuration
 - Validate major digest only when enabled (02-01) — Empty MAJOR_UPDATE_TO means feature unused, invalid CC/BCC irrelevant
+- digest_type parameter with default (02-02) — get_last_run/set_last_run use digest_type="regular" default for backwards compatibility
+- State migration (02-02) — Automatic migration from old last_run to regular_last_run on first load
+- Rollback safety (02-02) — Old last_run key preserved after migration for rollback capability
+- Corruption isolation (02-02) — Corrupted state for one digest type does not affect other types
+- Selective clear (02-02) — clear() supports both full state clear and per-digest-type clear
+- CLI flags (02-02) — --regular-only and --major-only flags added for selective digest execution
 
 ### Pending Todos
 
@@ -75,8 +81,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (phase 2 plan 1 execution complete)
-Stopped at: Completed 02-01-PLAN.md (major digest config), ready for 02-02
+Last session: 2026-02-24 (phase 2 plan 2 execution complete)
+Stopped at: Completed 02-02-PLAN.md (digest-type-aware state), ready for 02-03
 Resume file: None
 
 Config (if exists):
