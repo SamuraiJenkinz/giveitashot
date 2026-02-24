@@ -12,6 +12,7 @@ from typing import Optional
 
 from .config import Config
 from .ews_client import Email
+from .extractor import MajorUpdateFields, UrgencyTier
 
 logger = logging.getLogger(__name__)
 
@@ -162,11 +163,14 @@ class EmailSummarizer:
             categories[domain].append(summary)
         return categories
 
-    def format_summary_html(self, summary: DailySummary, mailbox: str) -> str:
-        """Format the summary as a professional HTML email."""
+    def _get_color_palette(self) -> dict[str, str]:
+        """
+        Get the standard color palette for HTML emails.
 
-        # Color palette
-        colors = {
+        Returns:
+            Dictionary of color names to hex values.
+        """
+        return {
             "primary": "#1a73e8",       # Blue
             "primary_dark": "#1557b0",
             "success": "#34a853",        # Green
@@ -179,6 +183,12 @@ class EmailSummarizer:
             "bg_card": "#ffffff",
             "border": "#e8eaed",
         }
+
+    def format_summary_html(self, summary: DailySummary, mailbox: str) -> str:
+        """Format the summary as a professional HTML email."""
+
+        # Color palette
+        colors = self._get_color_palette()
 
         if summary.total_count == 0:
             return self._format_no_emails_html(summary, mailbox, colors)
@@ -448,3 +458,295 @@ class EmailSummarizer:
         else:
             ai_tag = "🤖 " if self._use_llm else ""
             return f"{ai_tag}📬 Daily Digest ({date_short}): {summary.total_count} email(s)"
+
+    def format_major_updates_html(self, updates: list[MajorUpdateFields]) -> str:
+        """
+        Format major updates as a professional HTML email digest.
+
+        Args:
+            updates: List of extracted major update fields.
+
+        Returns:
+            Complete HTML email string, or empty string if no updates.
+        """
+        if not updates:
+            return ""
+
+        colors = self._get_color_palette()
+        today = datetime.now()
+        date_str = today.strftime("%A, %B %d, %Y")
+
+        # Count updates by urgency tier
+        tier_counts = {
+            UrgencyTier.CRITICAL: 0,
+            UrgencyTier.HIGH: 0,
+            UrgencyTier.NORMAL: 0
+        }
+        for update in updates:
+            tier_counts[update.urgency] += 1
+
+        # Urgency tier colors
+        tier_colors = {
+            UrgencyTier.CRITICAL: colors["danger"],
+            UrgencyTier.HIGH: colors["warning"],
+            UrgencyTier.NORMAL: colors["success"]
+        }
+
+        # Urgency tier labels
+        tier_labels = {
+            UrgencyTier.CRITICAL: "CRITICAL - Immediate Action Required",
+            UrgencyTier.HIGH: "HIGH PRIORITY - Action Required Within 30 Days",
+            UrgencyTier.NORMAL: "NORMAL - Informational Updates"
+        }
+
+        # Build urgency breakdown text
+        breakdown_parts = []
+        if tier_counts[UrgencyTier.CRITICAL] > 0:
+            breakdown_parts.append(f"{tier_counts[UrgencyTier.CRITICAL]} Critical")
+        if tier_counts[UrgencyTier.HIGH] > 0:
+            breakdown_parts.append(f"{tier_counts[UrgencyTier.HIGH]} High")
+        if tier_counts[UrgencyTier.NORMAL] > 0:
+            breakdown_parts.append(f"{tier_counts[UrgencyTier.NORMAL]} Normal")
+        urgency_breakdown = ", ".join(breakdown_parts)
+
+        # Start HTML
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: {colors['bg_light']}; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: {colors['bg_light']};">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: {colors['bg_card']}; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, {colors['danger']} 0%, {colors['primary']} 100%); padding: 32px 40px; border-radius: 12px 12px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                🛡️ Major Updates Digest
+                            </h1>
+                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+                                {date_str}
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Stats Bar -->
+                    <tr>
+                        <td style="padding: 24px 40px; border-bottom: 1px solid {colors['border']};">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td width="50%">
+                                        <p style="margin: 0; color: {colors['text_light']}; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Major Updates</p>
+                                        <p style="margin: 4px 0 0 0; color: {colors['text_dark']}; font-size: 14px; font-weight: 500;">{urgency_breakdown}</p>
+                                    </td>
+                                    <td width="50%" align="right">
+                                        <p style="margin: 0; color: {colors['text_light']}; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Total Updates</p>
+                                        <p style="margin: 4px 0 0 0; color: {colors['primary']}; font-size: 28px; font-weight: 700;">{len(updates)}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 32px 40px;">
+"""
+
+        # Render updates grouped by urgency tier
+        for tier in [UrgencyTier.CRITICAL, UrgencyTier.HIGH, UrgencyTier.NORMAL]:
+            tier_updates = [u for u in updates if u.urgency == tier]
+            if not tier_updates:
+                continue
+
+            # Sort by action date (soonest first, None last)
+            def sort_key(u):
+                if u.action_required_date is None:
+                    return (1, datetime.max)
+                return (0, u.action_required_date)
+            tier_updates.sort(key=sort_key)
+
+            tier_color = tier_colors[tier]
+            tier_label = tier_labels[tier]
+
+            html += f"""
+                            <!-- {tier.value} Section -->
+                            <div style="margin-bottom: 32px;">
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td>
+                                            <p style="margin: 0 0 16px 0; color: {colors['text_dark']}; font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                                                <span style="display: inline-block; width: 8px; height: 8px; background-color: {tier_color}; border-radius: 50%; margin-right: 8px;"></span>
+                                                {tier_label}
+                                            </p>
+                                        </td>
+                                    </tr>
+                </table>
+"""
+
+            for update in tier_updates:
+                # MC ID with optional UPDATED badge
+                mc_id_display = update.mc_id if update.mc_id else "MC######"
+                updated_badge = ""
+                if update.is_updated:
+                    updated_badge = f' <span style="display: inline-block; background-color: {colors["warning"]}; color: #ffffff; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">UPDATED</span>'
+
+                # Action date and days remaining
+                action_date_html = ""
+                if update.action_required_date:
+                    date_formatted = update.action_required_date.strftime("%B %d, %Y")
+                    days_diff = (update.action_required_date.date() - today.date()).days
+
+                    if days_diff < 0:
+                        # Overdue
+                        days_text = f'<span style="color: {colors["danger"]}; font-weight: 600;">(OVERDUE - {abs(days_diff)} days past deadline)</span>'
+                    else:
+                        days_text = f"({days_diff} days remaining)"
+
+                    action_date_html = f"""
+                                                <p style="margin: 8px 0 0 0; color: {colors['text_dark']}; font-size: 13px;">
+                                                    <strong>Action Required:</strong> {date_formatted} {days_text}
+                                                </p>
+"""
+                else:
+                    action_date_html = f"""
+                                                <p style="margin: 8px 0 0 0; color: {colors['text_light']}; font-size: 13px;">
+                                                    No deadline specified
+                                                </p>
+"""
+
+                # Affected services
+                services_html = ""
+                if update.affected_services:
+                    services_pills = []
+                    for service in update.affected_services:
+                        services_pills.append(
+                            f'<span style="display: inline-block; background-color: {colors["bg_light"]}; color: {colors["text_medium"]}; font-size: 11px; padding: 4px 10px; border-radius: 12px; margin: 2px 4px 2px 0; border: 1px solid {colors["border"]};">{service}</span>'
+                        )
+                    services_html = f"""
+                                                <p style="margin: 8px 0 0 0; color: {colors['text_medium']}; font-size: 12px;">
+                                                    <strong>Services:</strong><br>
+                                                    {"".join(services_pills)}
+                                                </p>
+"""
+                else:
+                    services_html = f"""
+                                                <p style="margin: 8px 0 0 0; color: {colors['text_light']}; font-size: 12px;">
+                                                    <strong>Services:</strong> Services not specified
+                                                </p>
+"""
+
+                # Categories
+                categories_html = ""
+                if update.categories:
+                    categories_pills = []
+                    for i, category in enumerate(update.categories):
+                        if i == 0:
+                            # Primary category - use tier color
+                            bg_color = tier_color
+                            text_color = "#ffffff"
+                        else:
+                            # Secondary categories - muted
+                            bg_color = colors["bg_light"]
+                            text_color = colors["text_medium"]
+                        categories_pills.append(
+                            f'<span style="display: inline-block; background-color: {bg_color}; color: {text_color}; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; margin: 2px 4px 2px 0;">{category}</span>'
+                        )
+                    categories_html = f"""
+                                                <p style="margin: 8px 0 0 0;">
+                                                    {"".join(categories_pills)}
+                                                </p>
+"""
+
+                # Published and updated dates
+                published_str = update.published_date.strftime("%b %d, %Y")
+                dates_html = f"""
+                                                <p style="margin: 8px 0 0 0; color: {colors['text_light']}; font-size: 11px;">
+                                                    <strong>Published:</strong> {published_str}
+"""
+                if update.is_updated:
+                    updated_str = update.last_updated_date.strftime("%b %d, %Y")
+                    dates_html += f"""                                                    <span style="margin-left: 12px;"><strong>Updated:</strong> {updated_str}</span>
+"""
+                dates_html += """                                                </p>
+"""
+
+                # Body preview
+                body_preview_html = ""
+                if update.body_preview:
+                    body_preview_html = f"""
+                                                <p style="margin: 12px 0 0 0; color: {colors['text_medium']}; font-size: 13px; line-height: 1.5;">
+                                                    {update.body_preview}
+                                                </p>
+"""
+
+                # Update card
+                html += f"""
+                                <div style="background-color: {colors['bg_light']}; border-left: 4px solid {tier_color}; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 16px;">
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td>
+                                                <p style="margin: 0; color: {colors['primary']}; font-size: 14px; font-weight: 700;">
+                                                    {mc_id_display}{updated_badge}
+                                                </p>
+{action_date_html}{services_html}{categories_html}{dates_html}{body_preview_html}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+"""
+
+            html += """
+                            </div>
+"""
+
+        # Footer
+        html += f"""
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: {colors['bg_light']}; padding: 24px 40px; border-radius: 0 0 12px 12px; border-top: 1px solid {colors['border']};">
+                            <p style="margin: 0; color: {colors['text_light']}; font-size: 12px; text-align: center;">
+                                Generated automatically by InboxIQ Major Updates Digest
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+        return html
+
+    def get_major_subject_line(self, updates: list[MajorUpdateFields]) -> str:
+        """
+        Generate subject line for major updates digest.
+
+        Args:
+            updates: List of extracted major update fields.
+
+        Returns:
+            Subject line with urgency-based prefix and counts.
+        """
+        date_str = datetime.now().strftime("%m/%d/%Y")
+        total = len(updates)
+
+        # Count by urgency
+        critical_count = sum(1 for u in updates if u.urgency == UrgencyTier.CRITICAL)
+        high_count = sum(1 for u in updates if u.urgency == UrgencyTier.HIGH)
+
+        if critical_count > 0:
+            return f"CRITICAL: {total} Major Update(s) Require Immediate Action ({date_str})"
+        elif high_count > 0:
+            return f"ACTION REQUIRED: {total} Major Update(s) ({date_str})"
+        else:
+            return f"Major Updates Digest ({date_str}) - {total} Update(s)"
