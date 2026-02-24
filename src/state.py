@@ -35,6 +35,13 @@ class StateManager:
                 with open(self._state_file, "r") as f:
                     self._state = json.load(f)
                 logger.debug(f"Loaded state from {self._state_file}")
+
+                # Backwards-compatible migration: last_run -> regular_last_run
+                if "last_run" in self._state and "regular_last_run" not in self._state:
+                    self._state["regular_last_run"] = self._state["last_run"]
+                    logger.info("Migrated state: last_run -> regular_last_run")
+                    self._save()  # Persist migration
+
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Failed to load state file: {e}")
                 self._state = {}
@@ -50,24 +57,33 @@ class StateManager:
         except IOError as e:
             logger.error(f"Failed to save state file: {e}")
 
-    def get_last_run(self) -> datetime | None:
+    def get_last_run(self, digest_type: str = "regular") -> datetime | None:
         """
-        Get the timestamp of the last successful run.
+        Get the timestamp of the last successful run for a specific digest type.
+
+        Args:
+            digest_type: Type of digest ("regular" or "major"). Defaults to "regular".
 
         Returns:
             datetime in UTC if available, None if no previous run.
         """
-        timestamp = self._state.get("last_run")
+        key = f"{digest_type}_last_run"
+        timestamp = self._state.get(key)
         if timestamp:
-            return datetime.fromisoformat(timestamp)
+            try:
+                return datetime.fromisoformat(timestamp)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to parse {key} timestamp: {e}")
+                return None
         return None
 
-    def set_last_run(self, timestamp: datetime | None = None) -> None:
+    def set_last_run(self, timestamp: datetime | None = None, digest_type: str = "regular") -> None:
         """
-        Set the last run timestamp.
+        Set the last run timestamp for a specific digest type.
 
         Args:
             timestamp: The timestamp to save. Defaults to current UTC time.
+            digest_type: Type of digest ("regular" or "major"). Defaults to "regular".
         """
         if timestamp is None:
             timestamp = datetime.now(timezone.utc)
@@ -76,13 +92,29 @@ class StateManager:
         if timestamp.tzinfo is None:
             timestamp = timestamp.replace(tzinfo=timezone.utc)
 
-        self._state["last_run"] = timestamp.isoformat()
+        key = f"{digest_type}_last_run"
+        self._state[key] = timestamp.isoformat()
         self._save()
-        logger.info(f"Updated last run time: {timestamp.isoformat()}")
+        logger.info(f"Updated {digest_type} last run time: {timestamp.isoformat()}")
 
-    def clear(self) -> None:
-        """Clear all state (forces full fetch on next run)."""
-        self._state = {}
-        if self._state_file.exists():
-            self._state_file.unlink()
-            logger.info("State cleared")
+    def clear(self, digest_type: str | None = None) -> None:
+        """
+        Clear state.
+
+        Args:
+            digest_type: If specified, clear only that digest type's state.
+                        If None (default), clear all state.
+        """
+        if digest_type is None:
+            # Clear all state
+            self._state = {}
+            if self._state_file.exists():
+                self._state_file.unlink()
+                logger.info("State cleared")
+        else:
+            # Clear specific digest type
+            key = f"{digest_type}_last_run"
+            if key in self._state:
+                del self._state[key]
+                self._save()
+                logger.info(f"Cleared {digest_type} state")

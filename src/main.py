@@ -79,6 +79,16 @@ def main() -> int:
         action="store_true",
         help="Clear state file (forces full fetch on next run)"
     )
+    parser.add_argument(
+        "--regular-only",
+        action="store_true",
+        help="Send only regular digest (skip major update digest)"
+    )
+    parser.add_argument(
+        "--major-only",
+        action="store_true",
+        help="Send only major update digest (skip regular digest)"
+    )
     args = parser.parse_args()
 
     # Setup logging
@@ -138,7 +148,7 @@ def main() -> int:
         if args.full:
             logger.info("Full mode: fetching all emails from today")
         else:
-            since = state.get_last_run()
+            since = state.get_last_run(digest_type="regular")
             if since:
                 logger.info(f"Incremental mode: fetching emails since {since.isoformat()}")
             else:
@@ -214,6 +224,9 @@ def main() -> int:
                 logger.info(f"Major Updates (not in digest): {len(major_update_emails)}")
                 for mu_email in major_update_emails:
                     logger.info(f"  - {mu_email.subject}")
+            # Preview major digest config status
+            if hasattr(Config, 'is_major_digest_enabled') and Config.is_major_digest_enabled():
+                logger.info(f"Major digest: enabled ({len(Config.MAJOR_UPDATE_TO)} TO recipient(s))")
             logger.info("-" * 40)
         else:
             # Send the summary email
@@ -228,7 +241,7 @@ def main() -> int:
             logger.info("Summary email sent successfully!")
 
             # Update state with current time for next incremental run
-            state.set_last_run()
+            state.set_last_run(digest_type="regular")
 
         logger.info("=" * 60)
         logger.info("Email Summarizer Agent Completed Successfully")
