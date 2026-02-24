@@ -60,10 +60,11 @@ Plans:
   3. Digest uses urgency visual indicators with color-coding based on deadline proximity (Critical > High > Normal)
   4. HTML formatting is professional with inline styling consistent with existing regular digest
   5. Digest sent successfully to configured MAJOR_UPDATE_* recipients
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- MessageCenterExtractor: field extraction, urgency calculation, deduplication, and tests
+- [ ] 03-02-PLAN.md -- HTML digest formatter, pipeline integration, and major digest send flow
 
 ### Phase 4: AI Enhancement
 **Goal**: AI extracts actionable admin tasks and displays time-sensitive deadline countdowns
@@ -103,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Detection Foundation | 2/2 | Complete | 2026-02-24 |
 | 2. Configuration and State Management | 2/2 | Complete | 2026-02-24 |
-| 3. Digest Content Extraction | 0/1 | Not started | - |
+| 3. Digest Content Extraction | 0/2 | Not started | - |
 | 4. AI Enhancement | 0/1 | Not started | - |
 | 5. Integration Testing | 0/1 | Not started | - |
 
