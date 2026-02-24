@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 3 of 5 (Digest Content Extraction)
-Plan: None (ready to plan)
-Status: Ready to plan
-Last activity: 2026-02-24 — Phase 2 (Configuration and State Management) verified and complete
+Plan: 01 of 02 completed
+Status: In progress
+Last activity: 2026-02-24 — Completed 03-01-PLAN.md (Message Center field extraction)
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 4.1 minutes
-- Total execution time: 0.27 hours
+- Total plans completed: 5
+- Average duration: 3.8 minutes
+- Total execution time: 0.32 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 1. Detection Foundation | 2/2 | 0.12h | 4 min |
 | 2. Configuration and State | 2/2 | 0.15h | 4.5 min |
+| 3. Digest Content Extraction | 1/2 | 0.05h | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3m), 01-02 (4m), 02-01 (2m), 02-02 (7m)
-- Trend: Phase 2 complete
+- Last 5 plans: 01-02 (4m), 02-01 (2m), 02-02 (7m), 03-01 (3m)
+- Trend: Phase 3 in progress
 
 *Updated after each plan completion*
 
@@ -62,6 +63,11 @@ Recent decisions affecting current work:
 - Corruption isolation (02-02) — Corrupted state for one digest type does not affect other types
 - Selective clear (02-02) — clear() supports both full state clear and per-digest-type clear
 - CLI flags (02-02) — --regular-only and --major-only flags added for selective digest execution
+- Multi-format date support (03-01) — Both MM/DD/YYYY and "Month DD, YYYY" formats for action date extraction
+- Urgency boundaries (03-01) — <=7 days Critical, <=30 days High, >30 days or no date Normal
+- Deduplication strategy (03-01) — Keep latest by received_datetime, set is_updated=True, never deduplicate None MC IDs
+- Service/category normalization (03-01) — Title case for services, uppercase for categories for display consistency
+- Body preview truncation (03-01) — 200 chars at word boundary with "..." suffix
 
 ### Pending Todos
 
@@ -81,6 +87,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (phase 2 execution complete)
-Stopped at: Phase 2 verified (4/4 must-haves, 48/48 tests), ready for Phase 3 planning
+Last session: 2026-02-24T20:41:56Z (plan 03-01 execution complete)
+Stopped at: Completed 03-01-PLAN.md (2/2 tasks, 87/87 tests passing)
 Resume file: None
+Next: Plan 03-02 (Digest HTML Rendering)
