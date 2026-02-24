@@ -14,14 +14,14 @@ Requirements for milestone v1.0 Major Updates Digest. Each maps to roadmap phase
 
 ### Digest Content
 
-- [ ] **DIGEST-01**: Major updates digest displays Message ID (MC######) for each update
-- [ ] **DIGEST-02**: Major updates digest prominently displays action-required dates for each update
-- [ ] **DIGEST-03**: Major updates digest displays affected services (Exchange Online, Microsoft 365 Apps, Teams, etc.)
-- [ ] **DIGEST-04**: Major updates digest displays update category tags (MAJOR UPDATE, ADMIN IMPACT, USER IMPACT, RETIREMENT)
-- [ ] **DIGEST-05**: Major updates digest displays published date and last-updated date for each update
-- [ ] **DIGEST-06**: Major updates digest uses urgency visual indicators with color-coding (Critical > High > Normal)
-- [ ] **DIGEST-07**: Major updates digest is formatted as professional HTML email with inline styling
-- [ ] **DIGEST-08**: Major updates digest is sent to separately configurable recipients (MAJOR_UPDATE_TO/CC/BCC)
+- [x] **DIGEST-01**: Major updates digest displays Message ID (MC######) for each update
+- [x] **DIGEST-02**: Major updates digest prominently displays action-required dates for each update
+- [x] **DIGEST-03**: Major updates digest displays affected services (Exchange Online, Microsoft 365 Apps, Teams, etc.)
+- [x] **DIGEST-04**: Major updates digest displays update category tags (MAJOR UPDATE, ADMIN IMPACT, USER IMPACT, RETIREMENT)
+- [x] **DIGEST-05**: Major updates digest displays published date and last-updated date for each update
+- [x] **DIGEST-06**: Major updates digest uses urgency visual indicators with color-coding (Critical > High > Normal)
+- [x] **DIGEST-07**: Major updates digest is formatted as professional HTML email with inline styling
+- [x] **DIGEST-08**: Major updates digest is sent to separately configurable recipients (MAJOR_UPDATE_TO/CC/BCC)
 
 ### AI Enhancement
 
@@ -69,13 +69,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DETECT-01 | Phase 1 | Complete |
 | DETECT-02 | Phase 1 | Complete |
-| DIGEST-01 | Phase 3 | Pending |
-| DIGEST-02 | Phase 3 | Pending |
-| DIGEST-03 | Phase 3 | Pending |
-| DIGEST-04 | Phase 3 | Pending |
-| DIGEST-05 | Phase 3 | Pending |
-| DIGEST-06 | Phase 3 | Pending |
-| DIGEST-07 | Phase 3 | Pending |
+| DIGEST-01 | Phase 3 | Complete |
+| DIGEST-02 | Phase 3 | Complete |
+| DIGEST-03 | Phase 3 | Complete |
+| DIGEST-04 | Phase 3 | Complete |
+| DIGEST-05 | Phase 3 | Complete |
+| DIGEST-06 | Phase 3 | Complete |
+| DIGEST-07 | Phase 3 | Complete |
 | DIGEST-08 | Phase 2 | Complete |
 | AI-01 | Phase 4 | Pending |
 | AI-02 | Phase 4 | Pending |
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-24 after Phase 1 completion*
+*Last updated: 2026-02-24 after Phase 3 completion*

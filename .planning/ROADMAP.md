@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Detection Foundation** - Multi-signal email classification with Message Center pattern matching
 - [x] **Phase 2: Configuration and State Management** - Dual-digest infrastructure with separate recipients and state tracking
-- [ ] **Phase 3: Digest Content Extraction** - HTML formatting with Message Center-specific fields
+- [x] **Phase 3: Digest Content Extraction** - HTML formatting with Message Center-specific fields
 - [ ] **Phase 4: AI Enhancement** - Admin action extraction and deadline countdown
 - [ ] **Phase 5: Integration Testing** - End-to-end validation with dual digest orchestration
 
@@ -63,8 +63,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- MessageCenterExtractor: field extraction, urgency calculation, deduplication, and tests
-- [ ] 03-02-PLAN.md -- HTML digest formatter, pipeline integration, and major digest send flow
+- [x] 03-01-PLAN.md -- MessageCenterExtractor: field extraction, urgency calculation, deduplication, and tests
+- [x] 03-02-PLAN.md -- HTML digest formatter, pipeline integration, and major digest send flow
 
 ### Phase 4: AI Enhancement
 **Goal**: AI extracts actionable admin tasks and displays time-sensitive deadline countdowns
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Detection Foundation | 2/2 | Complete | 2026-02-24 |
 | 2. Configuration and State Management | 2/2 | Complete | 2026-02-24 |
-| 3. Digest Content Extraction | 0/2 | Not started | - |
+| 3. Digest Content Extraction | 2/2 | Complete | 2026-02-24 |
 | 4. AI Enhancement | 0/1 | Not started | - |
 | 5. Integration Testing | 0/1 | Not started | - |
 
