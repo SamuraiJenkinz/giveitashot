@@ -58,6 +58,11 @@ class Config:
     SUMMARY_CC: list[str] = _parse_email_list("SUMMARY_CC")
     SUMMARY_BCC: list[str] = _parse_email_list("SUMMARY_BCC")
 
+    # Major Update Digest Recipients (optional, enables major digest when TO has recipients)
+    MAJOR_UPDATE_TO: list[str] = _parse_email_list("MAJOR_UPDATE_TO")
+    MAJOR_UPDATE_CC: list[str] = _parse_email_list("MAJOR_UPDATE_CC")
+    MAJOR_UPDATE_BCC: list[str] = _parse_email_list("MAJOR_UPDATE_BCC")
+
     @classmethod
     def get_recipients(cls) -> list[str]:
         """
@@ -72,6 +77,28 @@ class Config:
         elif cls.SUMMARY_RECIPIENT:
             return [cls.SUMMARY_RECIPIENT]
         return []
+
+    @classmethod
+    def is_major_digest_enabled(cls) -> bool:
+        """
+        Check if major update digest is enabled.
+        Enabled when MAJOR_UPDATE_TO has at least one recipient.
+
+        Returns:
+            True if major digest is enabled, False otherwise.
+        """
+        return bool(cls.MAJOR_UPDATE_TO)
+
+    @classmethod
+    def get_major_recipients(cls) -> list[str]:
+        """
+        Get the list of major update digest TO recipients.
+        No fallback - major digest recipients must be explicitly configured.
+
+        Returns:
+            List of major update TO recipient email addresses (may be empty).
+        """
+        return cls.MAJOR_UPDATE_TO
 
     @classmethod
     def get_send_from(cls) -> str:
@@ -101,6 +128,9 @@ class Config:
     @classmethod
     def validate(cls) -> None:
         """Validate that required configuration values are present."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         missing = []
 
         if not cls.TENANT_ID:
@@ -124,6 +154,26 @@ class Config:
                 "No email recipients configured. "
                 "Set either SUMMARY_RECIPIENT or SUMMARY_TO in your .env file."
             )
+
+        # Validate major update digest recipients if feature is enabled
+        if cls.is_major_digest_enabled():
+            logger.info(f"Major digest enabled with {len(cls.MAJOR_UPDATE_TO)} TO recipient(s)")
+
+            # Validate MAJOR_UPDATE_CC entries
+            invalid_cc = [email for email in cls.MAJOR_UPDATE_CC if "@" not in email]
+            if invalid_cc:
+                raise ValueError(
+                    f"Invalid MAJOR_UPDATE_CC addresses (missing '@'): {', '.join(invalid_cc)}"
+                )
+
+            # Validate MAJOR_UPDATE_BCC entries
+            invalid_bcc = [email for email in cls.MAJOR_UPDATE_BCC if "@" not in email]
+            if invalid_bcc:
+                raise ValueError(
+                    f"Invalid MAJOR_UPDATE_BCC addresses (missing '@'): {', '.join(invalid_bcc)}"
+                )
+        else:
+            logger.debug("Major digest not enabled (MAJOR_UPDATE_TO empty or missing)")
 
     @classmethod
     def get_authority(cls) -> str:
