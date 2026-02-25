@@ -18,6 +18,7 @@ import logging
 import sys
 from datetime import datetime
 
+from .action_extractor import ActionExtractor
 from .auth import EWSAuthenticator, AuthenticationError
 from .classifier import EmailClassifier
 from .config import Config
@@ -252,10 +253,26 @@ def main() -> int:
                         if not major_fields:
                             logger.info("No major updates to digest after deduplication")
                         else:
+                            # Extract AI actions from major updates
+                            actions = {}
+                            try:
+                                action_extractor = ActionExtractor()
+                                if action_extractor.available:
+                                    logger.info(f"Extracting AI actions from {len(major_fields)} major update(s)...")
+                                    actions = action_extractor.extract_actions_batch(major_fields)
+                                    succeeded = sum(1 for v in actions.values() if v is not None)
+                                    logger.info(f"AI action extraction: {succeeded}/{len(major_fields)} succeeded")
+                                else:
+                                    logger.info("AI action extraction unavailable (Azure OpenAI not configured)")
+                            except Exception as e:
+                                logger.warning(f"AI action extraction failed entirely: {e}")
+                                actions = {}
+
+                            # Format HTML and subject
                             # Format HTML and subject
                             if not args.major_only:
                                 summarizer = EmailSummarizer()
-                            major_html = summarizer.format_major_updates_html(major_fields)
+                            major_html = summarizer.format_major_updates_html(major_fields, actions=actions)
                             major_subject = summarizer.get_major_subject_line(major_fields)
 
                             logger.info(f"Major digest subject: {major_subject}")
@@ -279,6 +296,9 @@ def main() -> int:
                                 high = sum(1 for u in major_fields if u.urgency == UrgencyTier.HIGH)
                                 normal = sum(1 for u in major_fields if u.urgency == UrgencyTier.NORMAL)
                                 logger.info(f"Urgency breakdown: {critical} Critical, {high} High, {normal} Normal")
+                                if actions:
+                                    ai_count = sum(1 for v in actions.values() if v is not None)
+                                    logger.info(f"AI actions extracted: {ai_count}/{len(major_fields)} updates")
                                 logger.info("MC IDs:")
                                 for update in major_fields:
                                     mc_id = update.mc_id or "MC######"
