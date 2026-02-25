@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 4 of 5 (AI Enhancement)
-Plan: 1 of 3 complete
+Plan: 2 of 3 complete
 Status: In progress
-Last activity: 2026-02-24 — Completed 04-01-PLAN.md (AI action extraction module)
+Last activity: 2026-02-24 — Completed 04-02-PLAN.md (AI action integration into digest)
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 7.1 minutes
-- Total execution time: 0.88 hours
+- Total plans completed: 8
+- Average duration: 6.4 minutes
+- Total execution time: 0.93 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [███████░░░] 70%
 | 1. Detection Foundation | 2/2 | 0.12h | 4 min |
 | 2. Configuration and State | 2/2 | 0.15h | 4.5 min |
 | 3. Digest Content Extraction | 2/2 | 0.36h | 11 min |
-| 4. AI Enhancement | 1/3 | 0.25h | 15 min |
+| 4. AI Enhancement | 2/3 | 0.30h | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (7m), 03-01 (3m), 03-02 (25m), 04-01 (15m)
-- Trend: Phase 4 started, AI features with Azure OpenAI integration
+- Last 5 plans: 03-01 (3m), 03-02 (25m), 04-01 (15m), 04-02 (3m)
+- Trend: Phase 4 progressing, AI integration with efficient execution
 
 *Updated after each plan completion*
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - API version 2024-08-01-preview (04-01) — Required for Azure OpenAI structured outputs (json_schema with strict=True)
 - Graceful AI degradation (04-01) — Action extraction returns None on failure instead of raising exceptions
 - Body truncation 1500 chars (04-01) — Balances LLM context completeness with cost and latency for action extraction
+- Action items limit 3 per update (04-02) — Prevents email layout issues with excessively long action lists
+- Silent degradation for failed extractions (04-02) — No visible error indicators when extraction fails, body preview serves as fallback
+- Backward compatible actions parameter (04-02) — Optional parameter with None default allows existing code to work unchanged
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (phase 4 plan 1 execution complete)
-Stopped at: Completed 04-01-PLAN.md — ActionExtractor with Azure OpenAI structured outputs (123/123 tests pass)
+Last session: 2026-02-24 (phase 4 plan 2 execution complete)
+Stopped at: Completed 04-02-PLAN.md — AI action integration into major digest HTML and pipeline (131/131 tests pass)
 Resume file: None
