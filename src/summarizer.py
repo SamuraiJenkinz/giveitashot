@@ -8,11 +8,14 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .config import Config
 from .ews_client import Email
 from .extractor import MajorUpdateFields, UrgencyTier
+
+if TYPE_CHECKING:
+    from .action_extractor import ActionExtraction
 
 logger = logging.getLogger(__name__)
 
@@ -459,12 +462,13 @@ class EmailSummarizer:
             ai_tag = "🤖 " if self._use_llm else ""
             return f"{ai_tag}📬 Daily Digest ({date_short}): {summary.total_count} email(s)"
 
-    def format_major_updates_html(self, updates: list[MajorUpdateFields]) -> str:
+    def format_major_updates_html(self, updates: list[MajorUpdateFields], actions: Optional[dict[str, "ActionExtraction"]] = None) -> str:
         """
         Format major updates as a professional HTML email digest.
 
         Args:
             updates: List of extracted major update fields.
+            actions: Optional dict mapping mc_id to ActionExtraction (or None for failed extractions).
 
         Returns:
             Complete HTML email string, or empty string if no updates.
@@ -684,6 +688,37 @@ class EmailSummarizer:
                                                 </p>
 """
 
+                # Action items (AI-extracted)
+                actions_html = ""
+                if actions and update.mc_id:
+                    update_actions = actions.get(update.mc_id)
+                    if update_actions and update_actions.actions:
+                        # Limit to first 3 actions for layout safety
+                        actions_to_display = update_actions.actions[:3]
+                        actions_bullets = []
+                        for action in actions_to_display:
+                            # Build action text with optional role badge
+                            role_badge = ""
+                            if action.role:
+                                role_badge = f'<span style="display: inline-block; background-color: {colors["primary"]}; color: #ffffff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">{action.role}</span>'
+
+                            action_text = f'<p style="margin: 6px 0; color: {colors["text_dark"]}; font-size: 13px;">• {action.action}{role_badge}</p>'
+
+                            # Add details if present
+                            if action.details:
+                                action_text += f'<p style="margin: 2px 0 6px 16px; color: {colors["text_medium"]}; font-size: 12px; font-style: italic;">{action.details}</p>'
+
+                            actions_bullets.append(action_text)
+
+                        actions_html = f"""
+                                                <div style="margin-top: 12px; padding: 12px; background-color: {colors['bg_card']}; border: 1px solid {colors['border']}; border-radius: 6px;">
+                                                    <p style="margin: 0 0 8px 0; color: {colors['text_dark']}; font-size: 12px; font-weight: 600;">
+                                                        ⚡ ACTION ITEMS
+                                                    </p>
+                                                    {"".join(actions_bullets)}
+                                                </div>
+"""
+
                 # Update card
                 html += f"""
                                 <div style="background-color: {colors['bg_light']}; border-left: 4px solid {tier_color}; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 16px;">
@@ -693,7 +728,7 @@ class EmailSummarizer:
                                                 <p style="margin: 0; color: {colors['primary']}; font-size: 14px; font-weight: 700;">
                                                     {mc_id_display}{updated_badge}
                                                 </p>
-{action_date_html}{services_html}{categories_html}{dates_html}{body_preview_html}
+{action_date_html}{services_html}{categories_html}{dates_html}{body_preview_html}{actions_html}
                                             </td>
                                         </tr>
                                     </table>
