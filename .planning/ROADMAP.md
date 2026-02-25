@@ -75,10 +75,11 @@ Plans:
   2. Digest displays deadline countdown showing days remaining until action required
   3. AI extraction failures degrade gracefully without blocking digest delivery
   4. LLM structured output validation catches malformed or hallucinated data before display
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md -- ActionExtractor module with Pydantic models, Azure OpenAI structured outputs, and unit tests
+- [ ] 04-02-PLAN.md -- Wire action items into major digest HTML and pipeline integration
 
 ### Phase 5: Integration Testing
 **Goal**: Dual-digest system works reliably in production with both digests executing successfully in single hourly run
@@ -105,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Detection Foundation | 2/2 | Complete | 2026-02-24 |
 | 2. Configuration and State Management | 2/2 | Complete | 2026-02-24 |
 | 3. Digest Content Extraction | 2/2 | Complete | 2026-02-24 |
-| 4. AI Enhancement | 0/1 | Not started | - |
+| 4. AI Enhancement | 0/2 | Not started | - |
 | 5. Integration Testing | 0/1 | Not started | - |
 
 ---
