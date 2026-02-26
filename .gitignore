@@ -33,3 +33,6 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Dry-run HTML preview output
+output/

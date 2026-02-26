@@ -16,7 +16,9 @@ Usage:
 import argparse
 import logging
 import sys
+import webbrowser
 from datetime import datetime
+from pathlib import Path
 
 from .action_extractor import ActionExtractor
 from .auth import EWSAuthenticator, AuthenticationError
@@ -44,6 +46,25 @@ def setup_logging(debug: bool = False) -> None:
     # Reduce noise from exchangelib
     if not debug:
         logging.getLogger("exchangelib").setLevel(logging.WARNING)
+
+
+def _save_and_open_preview(html_content: str, digest_type: str, logger) -> None:
+    """Save HTML digest to output/ and open in default browser."""
+    output_dir = Path(__file__).parent.parent / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = output_dir / f"{digest_type}_digest.html"
+    file_path.write_text(html_content, encoding="utf-8")
+    logger.info(f"Digest saved: {file_path.absolute()}")
+
+    # Auto-open in browser
+    file_url = file_path.absolute().as_uri()
+    try:
+        webbrowser.open_new_tab(file_url)
+        logger.info(f"Opened in browser: {file_url}")
+    except Exception as e:
+        logger.warning(f"Could not auto-open browser: {e}")
+        logger.info(f"Please manually open: {file_path.absolute()}")
 
 
 def main() -> int:
@@ -220,6 +241,7 @@ def main() -> int:
                         for email_summary in summary.email_summaries:
                             logger.info(f"  - {email_summary.subject}")
                     logger.info("-" * 40)
+                    _save_and_open_preview(body_html, "regular", logger)
                 else:
                     # Send the summary email
                     logger.info(f"Sending regular digest to {len(to_recipients)} recipient(s)...")
@@ -304,6 +326,7 @@ def main() -> int:
                                     mc_id = update.mc_id or "MC######"
                                     logger.info(f"  - {mc_id}")
                                 logger.info("-" * 40)
+                                _save_and_open_preview(major_html, "major", logger)
                             else:
                                 # Send the major digest email
                                 major_recipients = Config.get_major_recipients()
