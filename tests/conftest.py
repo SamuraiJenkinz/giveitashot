@@ -4,8 +4,12 @@ Shared pytest fixtures for email classification tests.
 
 import pytest
 from datetime import datetime, timezone
+from pathlib import Path
+from email import message_from_file
+from email.message import Message
 
 from src.ews_client import Email
+from src.state import StateManager
 
 
 @pytest.fixture
@@ -191,3 +195,121 @@ def duplicate_mc_emails():
     )
 
     return [older_email, newer_email]
+
+
+# Integration test fixtures for .eml files and state isolation
+
+@pytest.fixture
+def eml_fixtures_dir():
+    """Fixture: Returns path to the fixtures directory."""
+    return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def load_eml(eml_fixtures_dir):
+    """
+    Fixture: Factory to load .eml files from fixtures directory.
+
+    Usage:
+        message = load_eml("synthetic", "mc_major_update_action_required.eml")
+
+    Args:
+        category: Subdirectory name (e.g., "synthetic", "real")
+        filename: .eml filename
+
+    Returns:
+        Parsed email.message.Message object
+    """
+    def _load(category: str, filename: str) -> Message:
+        file_path = eml_fixtures_dir / category / filename
+        if not file_path.exists():
+            pytest.skip(f"Fixture file not found: {file_path}")
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return message_from_file(f)
+
+    return _load
+
+
+@pytest.fixture
+def isolated_state(tmp_path):
+    """
+    Fixture: Provides isolated StateManager for tests.
+
+    Creates a StateManager with tmp_path state file to prevent
+    pollution of real .state.json during tests.
+
+    Returns:
+        StateManager instance with temporary state file
+    """
+    state_file = tmp_path / "state.json"
+    return StateManager(state_file=str(state_file))
+
+
+@pytest.fixture
+def mock_emails_from_eml():
+    """
+    Fixture: Factory to convert parsed .eml messages to Email dataclass instances.
+
+    Usage:
+        msg1 = load_eml("synthetic", "mc_major_update.eml")
+        msg2 = load_eml("synthetic", "regular_internal.eml")
+        emails = mock_emails_from_eml([msg1, msg2])
+
+    Args:
+        messages: List of email.message.Message objects
+
+    Returns:
+        List of Email dataclass instances
+    """
+    def _convert(messages: list[Message]) -> list[Email]:
+        emails = []
+        for idx, msg in enumerate(messages):
+            # Extract headers
+            sender_email = msg.get('From', '').split('<')[-1].rstrip('>')
+            sender_name = msg.get('From', '').split('<')[0].strip().strip('"')
+            subject = msg.get('Subject', '')
+            date_str = msg.get('Date', '')
+
+            # Parse date - use current time if parsing fails
+            try:
+                from email.utils import parsedate_to_datetime
+                received_datetime = parsedate_to_datetime(date_str)
+                # Ensure timezone-aware
+                if received_datetime.tzinfo is None:
+                    received_datetime = received_datetime.replace(tzinfo=timezone.utc)
+            except Exception:
+                received_datetime = datetime.now(timezone.utc)
+
+            # Extract body content
+            body_content = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        body_content = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                        break
+            else:
+                body_content = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
+
+            # Create body preview (first 200 chars)
+            body_preview = body_content[:200].strip()
+            if len(body_content) > 200:
+                body_preview += "..."
+
+            # Generate synthetic ID
+            email_id = f"AAMkAGZmSynthetic{idx:03d}"
+
+            emails.append(Email(
+                id=email_id,
+                subject=subject,
+                sender_name=sender_name,
+                sender_email=sender_email,
+                received_datetime=received_datetime,
+                body_preview=body_preview,
+                body_content=body_content,
+                has_attachments=False
+            ))
+
+        return emails
+
+    return _convert

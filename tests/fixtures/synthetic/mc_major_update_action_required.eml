@@ -1,0 +1,30 @@
+From: Microsoft 365 Message Center <o365mc@email2.microsoft.com>
+To: admin@company.com
+Subject: MC1234567: Major update - Exchange Online auth policy changes
+Date: Wed, 26 Feb 2026 10:30:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Message-ID: <mc1234567.synthetic@email2.microsoft.com>
+
+MAJOR UPDATE - Action required by 04/15/2026
+
+Exchange Online authentication policy changes
+
+This is a critical update affecting Exchange Online and Teams services.
+
+Admin impact: You must review and update your organization's authentication policies before the deadline to avoid service disruption.
+
+Key actions required:
+- Review current authentication settings in Exchange Admin Center
+- Update conditional access policies for Teams integration
+- Test changes in staging environment before production rollout
+
+Affected services:
+- Exchange Online
+- Microsoft Teams
+
+Timeline:
+- Review by: 04/01/2026
+- Implementation deadline: 04/15/2026
+
+For more information, visit the Message Center in the Microsoft 365 admin center.

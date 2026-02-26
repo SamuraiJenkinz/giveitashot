@@ -1,0 +1,36 @@
+From: Test User <testuser@company.com>
+To: team@company.com
+Subject: Weekly team standup notes
+Date: Wed, 26 Feb 2026 14:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Message-ID: <standup.synthetic@company.com>
+
+Hi team,
+
+Here are the notes from today's weekly standup meeting:
+
+Project Updates:
+- Phase 1 completed successfully, deployment went smoothly
+- Phase 2 kickoff scheduled for next Monday
+- No blockers reported this week
+
+Action Items:
+- Sarah: Update project timeline by Friday
+- Mike: Review security documentation
+- Everyone: Complete training modules by end of month
+
+Upcoming Events:
+- Team offsite planning meeting - March 5
+- Q1 retrospective - March 15
+- Department all-hands - March 20
+
+Reminders:
+- Submit timesheets by end of week
+- Review and approve pending PRs
+- Update project status in tracking tool
+
+Let me know if you have any questions or concerns.
+
+Thanks,
+Test User

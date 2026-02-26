@@ -1,0 +1,29 @@
+From: Microsoft 365 Message Center <o365mc@email2.microsoft.com>
+To: admin@company.com
+Subject: MC2345678: Service retirement - Legacy auth protocol removal
+Date: Wed, 26 Feb 2026 11:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Message-ID: <mc2345678.synthetic@email2.microsoft.com>
+
+RETIREMENT NOTICE
+
+Legacy authentication protocol removal for Exchange Online
+
+Microsoft is retiring support for legacy authentication protocols in Exchange Online as part of our ongoing security improvements.
+
+Admin impact: Organizations still using legacy authentication methods will need to migrate to modern authentication.
+
+What you need to know:
+- Basic authentication will be permanently disabled
+- OAuth 2.0 is the recommended authentication method
+- All mailbox access protocols are affected (POP, IMAP, SMTP)
+
+Affected services:
+- Exchange Online
+
+This change will help protect your organization from security threats associated with legacy authentication methods.
+
+No immediate action required, but we recommend planning your migration to modern authentication soon.
+
+For technical details and migration guidance, see the Message Center documentation.

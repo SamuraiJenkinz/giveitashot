@@ -1,0 +1,34 @@
+From: Microsoft 365 Message Center <o365mc@email2.microsoft.com>
+To: admin@company.com
+Subject: MC3456789: New feature - Teams meeting policy controls
+Date: Wed, 26 Feb 2026 12:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Message-ID: <mc3456789.synthetic@email2.microsoft.com>
+
+MAJOR UPDATE - Action required by March 30, 2026
+
+New Teams meeting policy controls now available
+
+Microsoft Teams is introducing enhanced meeting policy controls that give administrators more granular control over meeting features and participant permissions.
+
+Admin impact: Review and configure the new policy settings to ensure they align with your organization's security and compliance requirements.
+
+New capabilities:
+- Advanced lobby controls with custom waiting room messages
+- Granular presenter role assignments
+- Enhanced recording and transcription permissions
+- Custom meeting templates for different departments
+
+Action required:
+- Review new policy options in Teams Admin Center
+- Update existing meeting policies as needed
+- Communicate changes to meeting organizers
+- Configure default settings before March 30, 2026
+
+Affected services:
+- Microsoft Teams
+
+These new controls will be enabled by default on March 30, 2026. We recommend reviewing and configuring policies before this date to ensure a smooth transition.
+
+Additional resources and configuration guides are available in the Message Center.

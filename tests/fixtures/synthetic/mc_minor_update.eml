@@ -1,0 +1,27 @@
+From: Microsoft 365 Message Center <o365mc@email2.microsoft.com>
+To: admin@company.com
+Subject: MC4567890: Update - OneDrive storage limits
+Date: Wed, 26 Feb 2026 13:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Message-ID: <mc4567890.synthetic@email2.microsoft.com>
+
+OneDrive storage limit update
+
+We're updating the default storage limits for OneDrive for Business users in your organization.
+
+What's changing:
+- Default storage allocation increasing from 1TB to 2TB per user
+- Additional storage available for users who need it
+- Storage analytics dashboard improvements in OneDrive Admin Center
+
+Benefits for your organization:
+- Users have more space for files and collaboration
+- Better visibility into storage usage patterns
+- Simplified storage management workflows
+
+This change will roll out automatically over the next few weeks. No configuration changes are required on your part.
+
+Users will see the updated storage limits reflected in their OneDrive settings. They will receive a notification when their storage allocation is updated.
+
+For more information about storage management, visit the OneDrive documentation center.
