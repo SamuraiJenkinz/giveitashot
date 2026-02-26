@@ -25,8 +25,8 @@ Requirements for milestone v1.0 Major Updates Digest. Each maps to roadmap phase
 
 ### AI Enhancement
 
-- [ ] **AI-01**: AI extracts specific admin actions needed from each major update (e.g., "Update auth settings", "Migrate workflows", "Notify users")
-- [ ] **AI-02**: Major updates digest displays deadline countdown showing days remaining until action required
+- [x] **AI-01**: AI extracts specific admin actions needed from each major update (e.g., "Update auth settings", "Migrate workflows", "Notify users")
+- [x] **AI-02**: Major updates digest displays deadline countdown showing days remaining until action required
 
 ## v2 Requirements
 
@@ -77,8 +77,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIGEST-06 | Phase 3 | Complete |
 | DIGEST-07 | Phase 3 | Complete |
 | DIGEST-08 | Phase 2 | Complete |
-| AI-01 | Phase 4 | Pending |
-| AI-02 | Phase 4 | Pending |
+| AI-01 | Phase 4 | Complete |
+| AI-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 12 total
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-24 after Phase 3 completion*
+*Last updated: 2026-02-26 — All v1 requirements complete*
