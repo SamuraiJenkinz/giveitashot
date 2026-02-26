@@ -91,10 +91,12 @@ Plans:
   3. Empty major updates do not generate unnecessary digest emails
   4. Dry-run mode correctly shows both digest recipients and content preview
   5. State file updates correctly for both digest types across multiple simulated runs
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- Integration tests with synthetic fixtures: multi-run state simulation, corruption recovery, failure isolation, edge cases
+- [ ] 05-02-PLAN.md -- Dry-run HTML preview enhancement: save digests to output/ and auto-open in browser
+- [ ] 05-03-PLAN.md -- Real .eml fixture integration and manual visual verification
 
 ## Progress
 
@@ -107,8 +109,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Configuration and State Management | 2/2 | Complete | 2026-02-24 |
 | 3. Digest Content Extraction | 2/2 | Complete | 2026-02-24 |
 | 4. AI Enhancement | 0/2 | Not started | - |
-| 5. Integration Testing | 0/1 | Not started | - |
+| 5. Integration Testing | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-24*
+*Last updated: 2026-02-26*
