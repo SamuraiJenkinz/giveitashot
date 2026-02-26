@@ -33,7 +33,7 @@ class EmailClassifier:
     """
 
     # Compiled regex patterns (compile once, reuse)
-    SENDER_PATTERN = re.compile(r'@email2\.microsoft\.com$', re.IGNORECASE)
+    SENDER_PATTERN = re.compile(r'@(email2\.microsoft|microsoft)\.com$', re.IGNORECASE)
     MC_NUMBER_PATTERN = re.compile(r'\bMC\d{5,7}\b')
     MAJOR_UPDATE_KEYWORDS = re.compile(
         r'\b(major update|retirement|admin impact|action required|breaking change|deprecat)',
@@ -73,8 +73,9 @@ class EmailClassifier:
             score += self.WEIGHTS["subject_mc"]
             signals.append("subject_mc_number")
 
-        # Signal 3: Major update keywords in body
-        if self.MAJOR_UPDATE_KEYWORDS.search(email.body_content):
+        # Signal 3: Major update keywords in subject or body
+        if (self.MAJOR_UPDATE_KEYWORDS.search(email.subject) or
+            self.MAJOR_UPDATE_KEYWORDS.search(email.body_content)):
             score += self.WEIGHTS["body_keywords"]
             signals.append("body_keywords")
 

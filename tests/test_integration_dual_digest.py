@@ -467,3 +467,170 @@ class TestEndToEndPipeline:
 
         # Verify urgency sections present
         assert "Critical" in html or "High" in html or "Normal" in html
+
+
+class TestRealEmailIntegration:
+    """Integration tests using real .eml samples from Message Center."""
+
+    def test_real_eml_sanitization_check(self, load_eml):
+        """
+        Verify all real .eml files are sanitized (no PII).
+
+        Tests each file in tests/fixtures/real/ to ensure no mmc.com or marsh.com
+        domains are present. This prevents accidental PII commits.
+        """
+        real_fixtures_dir = Path("tests/fixtures/real")
+        if not real_fixtures_dir.exists():
+            pytest.skip("Real fixtures directory not present")
+
+        eml_files = list(real_fixtures_dir.glob("*.eml"))
+        if not eml_files:
+            pytest.skip("No real .eml files found")
+
+        # Check each file for PII patterns
+        for eml_file in eml_files:
+            content = eml_file.read_text(encoding="utf-8", errors="ignore")
+
+            # Assert no corporate domains present
+            assert "mmc.com" not in content.lower(), f"Found mmc.com in {eml_file.name}"
+            assert "marsh.com" not in content.lower(), f"Found marsh.com in {eml_file.name}"
+
+    @pytest.mark.parametrize("eml_filename", [
+        "Major update from Message center00.eml",
+        "Major update from Message center02.eml",
+        "Major update from Message center03.eml",
+        "Major update from Message center04.eml",
+        "Major update from Message center05.eml",
+        "Major update from Message center06.eml",
+    ])
+    def test_real_major_update_classification(self, load_eml, mock_emails_from_eml, eml_filename):
+        """
+        Verify real major update .eml files are classified correctly.
+
+        Tests that real Message Center emails match our detection patterns:
+        - Classified as major update
+        - Confidence score >= 70%
+        - MC ID pattern detected
+        """
+        # Load real .eml file (will skip if not present)
+        eml_content = load_eml("real", eml_filename)
+
+        # Convert to Email object
+        emails = mock_emails_from_eml([eml_content])
+        assert len(emails) == 1
+        email = emails[0]
+
+        # Classify
+        classifier = EmailClassifier()
+        result = classifier.classify(email)
+
+        # Verify classified as major update
+        assert result.is_major_update is True, f"{eml_filename} not classified as major update"
+        assert result.confidence_score >= 70, f"{eml_filename} confidence too low: {result.confidence_score}"
+
+        # Verify MC ID detected (either in subject or body)
+        assert "MC" in email.subject or "MC" in email.body_content, f"{eml_filename} missing MC ID pattern"
+
+    def test_real_major_updates_full_pipeline(self, load_eml, mock_emails_from_eml):
+        """
+        Run all real major updates through full pipeline.
+
+        Tests: .eml loading -> classification -> extraction -> deduplication -> HTML formatting
+
+        Verifies:
+        - All classified as major updates
+        - MC IDs extracted correctly
+        - Action dates extracted where present
+        - HTML output contains MC IDs and urgency tiers
+        """
+        real_fixtures_dir = Path("tests/fixtures/real")
+        if not real_fixtures_dir.exists():
+            pytest.skip("Real fixtures directory not present")
+
+        eml_files = list(real_fixtures_dir.glob("*.eml"))
+        if not eml_files:
+            pytest.skip("No real .eml files found")
+
+        # Load all real .eml files
+        eml_contents = [load_eml("real", f.name) for f in eml_files]
+
+        # Convert to Email objects
+        emails = mock_emails_from_eml(eml_contents)
+        assert len(emails) == len(eml_files)
+
+        # Step 1: Classification
+        classifier = EmailClassifier()
+        regular_emails, major_emails = classifier.classify_batch(emails)
+
+        # All real fixtures are major updates
+        assert len(major_emails) == len(emails), "Not all real emails classified as major"
+        assert len(regular_emails) == 0, "Regular emails found when all should be major"
+
+        # Step 2: Extraction
+        extractor = MessageCenterExtractor()
+        major_fields = extractor.extract_batch(major_emails)
+
+        assert len(major_fields) == len(major_emails)
+
+        # Verify MC IDs extracted
+        mc_ids_found = 0
+        for fields in major_fields:
+            if fields.mc_id:
+                mc_ids_found += 1
+                # Verify MC ID format
+                assert fields.mc_id.startswith("MC"), f"Invalid MC ID format: {fields.mc_id}"
+
+        # All major updates should have MC IDs
+        assert mc_ids_found == len(major_fields), "Some major updates missing MC IDs"
+
+        # Step 3: Deduplication
+        unique_updates = extractor.deduplicate(major_fields)
+
+        # No duplicates expected in real samples
+        assert len(unique_updates) <= len(major_fields)
+
+        # Step 4: HTML Formatting
+        summarizer = EmailSummarizer()
+        html = summarizer.format_major_updates_html(unique_updates)
+
+        # Verify HTML output
+        assert html != "", "HTML output is empty"
+        assert "MC" in html, "HTML missing MC IDs"
+
+        # Verify urgency sections present
+        urgency_keywords = ["Critical", "High", "Normal"]
+        assert any(keyword in html for keyword in urgency_keywords), "HTML missing urgency sections"
+
+    def test_real_emails_mixed_batch_classification(self, load_eml, mock_emails_from_eml):
+        """
+        Classify all real .eml files as a batch.
+
+        Tests batch classification efficiency and consistency.
+        All real fixtures are major updates, so verify batch consistency.
+        """
+        real_fixtures_dir = Path("tests/fixtures/real")
+        if not real_fixtures_dir.exists():
+            pytest.skip("Real fixtures directory not present")
+
+        eml_files = list(real_fixtures_dir.glob("*.eml"))
+        if not eml_files:
+            pytest.skip("No real .eml files found")
+
+        # Load all real .eml files
+        eml_contents = [load_eml("real", f.name) for f in eml_files]
+
+        # Convert to Email objects
+        emails = mock_emails_from_eml(eml_contents)
+
+        # Batch classify
+        classifier = EmailClassifier()
+        regular_emails, major_emails = classifier.classify_batch(emails)
+
+        # All real fixtures are major updates
+        assert len(major_emails) == len(emails), "Batch classification inconsistent with individual results"
+        assert len(regular_emails) == 0, "Regular emails found when all should be major"
+
+        # Verify all have high confidence
+        for email in major_emails:
+            result = classifier.classify(email)
+            assert result.confidence_score >= 70, f"Low confidence for {email.subject}"
