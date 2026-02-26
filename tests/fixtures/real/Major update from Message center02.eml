@@ -1,0 +1,2212 @@
+Received: from SJ0PR13MB5474.namprd13.prod.outlook.com (2603:10b6:a03:420::9)
+ by LV5PR13MB7596.namprd13.prod.outlook.com with HTTPS; Wed, 25 Feb 2026
+ 01:20:01 +0000
+Received: from CH2PR20CA0020.namprd20.prod.outlook.com (2603:10b6:610:58::30)
+ by SJ0PR13MB5474.namprd13.prod.outlook.com (2603:10b6:a03:420::9) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.9632.22; Wed, 25 Feb
+ 2026 01:19:54 +0000
+Received: from CH2PEPF0000009D.namprd02.prod.outlook.com
+ (2603:10b6:610:58:cafe::14) by CH2PR20CA0020.outlook.office365.com
+ (2603:10b6:610:58::30) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.20.9632.23 via Frontend Transport; Wed,
+ 25 Feb 2026 01:19:54 +0000
+Authentication-Results: spf=pass (sender IP is 52.101.193.89)
+ smtp.mailfrom=microsoft.com; dkim=fail (body hash did not verify)
+ header.d=microsoft.com;dmarc=pass action=none
+ header.from=microsoft.com;compauth=pass reason=100
+Received-SPF: Pass (protection.outlook.com: domain of microsoft.com designates
+ 52.101.193.89 as permitted sender) receiver=protection.outlook.com;
+ client-ip=52.101.193.89; helo=ch1pr05cu001.outbound.protection.outlook.com;
+ pr=C
+Received: from mail.company.com (168.168.33.250) by
+ CH2PEPF0000009D.mail.protection.outlook.com (10.167.244.25) with Microsoft
+ SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.9632.12 via Frontend Transport; Wed, 25 Feb 2026 01:19:53 +0000
+Received: from iedub11xo02v.mercer.com (10.181.56.83) by
+ iedub11xo06v.mercer.com (10.181.56.53) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.2.2562.37; Wed, 25 Feb 2026 01:19:51 +0000
+Received: from iedubppagt02.mrshmc.com (10.181.233.19) by
+ iedub11xo02v.mercer.com (10.181.56.83) with Microsoft SMTP Server id
+ 15.2.2562.37 via Frontend Transport; Wed, 25 Feb 2026 01:19:51 +0000
+Received: from pps.filterd (iedubppagt02.mrshmc.com [127.0.0.1])
+	by iedubppagt02.mrshmc.com (8.18.1.2/8.18.1.2) with ESMTP id 61OMSY6Q147245
+	for <testadmin@company.com>; Wed, 25 Feb 2026 01:19:51 GMT
+Authentication-Results-Original: mrshmc.com;	dkim=fail header.d=microsoft.com
+ header.s=s1024-meo;	spf=temperror smtp.mailfrom=o365mc@microsoft.com;
+	dmarc=temperror reason="DNS DMARC lookup domain=microsoft.com"
+Received: from mx0a-001b7601.pphosted.com ([205.220.166.231])
+	by iedubppagt02.mrshmc.com (PPS) with ESMTPS id 4cfrmeab31-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <testadmin@company.com>; Wed, 25 Feb 2026 01:19:40 +0000
+Received: from pps.filterd (m0493550.ppops.net [127.0.0.1])
+	by mx0b-001b7601.pphosted.com (8.18.1.11/8.18.1.11) with ESMTP id 61P0fCp92949723
+	for <testadmin@company.com>; Wed, 25 Feb 2026 01:19:38 GMT
+Authentication-Results-Original: ppops.net;	spf=pass
+ smtp.mailfrom=o365mc@microsoft.com;	dkim=pass header.d=microsoft.com
+ header.s=s1024-meo;	dmarc=pass header.from=microsoft.com
+Received: from ch1pr05cu001.outbound.protection.outlook.com (mail-northcentralusazon11020089.outbound.protection.outlook.com [52.101.193.89])
+	by mx0b-001b7601.pphosted.com (PPS) with ESMTPS id 4chprgrc2m-1
+	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NOT)
+	for <testadmin@company.com>; Wed, 25 Feb 2026 01:19:37 +0000 (GMT)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none;
+ b=v2/+DHPHig+cwYePepaQki1+iG1KSB1nkoiQm4e/1mTu9lzUSfC/EAyZ4hvssyGWvAv6jAuHWil77CCYfLbPTy2sSS8GwNbonnEOoIdVXVTODqfGWazOYisjpsOf7kgLZHXJMSuJAHaINmlrpzxtwFn/MNmxfbgBLzAvb4RmtqlTV70CMmMEOib3G++HqIJd5Rbjt+5KPM0E5aWk52zPMfMSQsGJwbutstCKMDnI+tzQdV0uMrHjitPwbBvPnXloiIrD5NKFpZpfdJzeQBYYOqIqTRmtc+ilosTikOCWPLrocZrabCr2E+ydRcBYZvvb3GEwwN58Rv/DLwjqzekDZQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector10001;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=wmPK+wpAZg8oDX39EzrKObcI5rVs9Or0+lCVcQeN9m4=;
+ b=tSrqDTq3iynHc31XfBNN+eCrbCGKGiYsbQz7crmwcjuv+i0xFv4aB7kawG9Zwk1lrKGbgpncZ1Y0Or5EHVNE4bXAlMsk5xBof6ZgQdHPDpUwsowxDT5s1/cV/D95/guq9Z/GkX4yLXYBu9asRwvtvTp4Pt8Av6mlXkEU9NsraFyIKvZzOqwELZbdfMlavKwwhgTuHno7V8FcrHQCBkVWcczJCQrUhUjianemheDlZklLhFTzMFwbouo5sHhRaZn4377v1fWuihpH6tZG3Rt2WULyk4+DBbEijbwOSot89nGMGjDt/dwlplh+CRstTD5K5QZ10GXxQCvRX/BP90wpJA==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=none; dmarc=none;
+ dkim=none; arc=none
+Received: from outlook.office365.com (2603:10b6:20f:fc04::f8c) by
+ IA0PPF32ECA008A.namprd14.prod.outlook.com with HTTP via
+ SN6PR2101CA0016.NAMPRD21.PROD.OUTLOOK.COM; Wed, 25 Feb 2026 01:19:35 +0000
+DKIM-Signature: v=1; a=rsa-sha256; d=microsoft.com; s=s1024-meo;
+	c=relaxed/relaxed; i=o365mc@microsoft.com; t=1771982375;
+	h=from:subject:date:message-id:to:mime-version:content-type;
+	bh=wmPK+wpAZg8oDX39EzrKObcI5rVs9Or0+lCVcQeN9m4=;
+	b=U8+QuveMuEe8ikXaos4/LKYY8cUN7YumfJvJcsyPzgui6sB8N3gkygwcyn9w40Mmhol5vjJlkdo
+	mpA1S3kuqzbTfpu7SWTKm09oBzw9zUV2PoTYVOWrJOz+/N82J+mmvD+dqPgxeE/NB9srS6LdYsZaH
+	lEaevchsf7YqfCD2Q68=
+From: Microsoft 365 Message center <o365mc@microsoft.com>
+Date: Wed, 25 Feb 2026 01:19:35 +0000
+Subject: Major update from Message center
+Message-Id: <9a029eff-dc0b-487d-b048-55bf5f85ceec@az.westus.microsoft.com>
+To: testadmin@company.com
+Content-Type: multipart/alternative; boundary="=-mSWtGdn1p202tXD+iS5Ojw=="
+client-request-id: beca060f-6170-44d0-930a-d1d6ce849f25
+request-id: 453be513-8038-73b2-5af0-d4c69fc823f0
+X-MS-TrafficTypeDiagnostic: IA0PPF32ECA008A:EE_MeoEmail|CH2PEPF0000009D:EE_|SJ0PR13MB5474:EE_|LV5PR13MB7596:EE_
+X-MS-Exchange-SenderADCheck: 0
+X-MS-Exchange-AntiSpam-Relay: 0
+X-Microsoft-Antispam-Untrusted: BCL:0;ARA:13230040|61400799027|7149299003|7049299003|4022899009|3109299003|69100299015|586017|376014|34036016|54012099003|13003099007|4076899003|8096899003;
+X-Microsoft-Antispam-Message-Info-Original: =?us-ascii?Q?xJi1kl1gI7H4Qes10BntZ2KmVtQOMu0rc/UuuOuXSwql609U1Jvv1YpYfW1V?=
+ =?us-ascii?Q?ocn9WEHv3IU+o24Eq8DkvVkU54mR/uXFZwaA8Ru1t7YBxCZsNLGqx2H6+rqf?=
+ =?us-ascii?Q?vWzz0e8tpJ/IgAr6m6o4rxrNt2OVanK07uI/W/hhf9pLNX3gelecEeelW4z+?=
+ =?us-ascii?Q?vJDCpneCCl0970QqTPlt45QQy6j+3rA1ltTcruB4CBEz3rXW10mYgZKCbEh0?=
+ =?us-ascii?Q?SocgvV76sWcCmjNO8a9wwxMVPuvcTgmgAo0o/RgV5+QqEezUBJcpyZuGYX9A?=
+ =?us-ascii?Q?Ic7Fqr0FnwLeMSQpBNRI2rgTm+zM5irW0n06APSFTmMplbh3xka/cw2bAxRZ?=
+ =?us-ascii?Q?Gk9NdoyikU9xAqB4KcLV9qxnVPnaEQpHUqM0e4CbvCGCobrg+x362HRGlc//?=
+ =?us-ascii?Q?e3+6Xjo00tD3sZTR9ihxPDDc2qq9uzG+Mne6/shJ4947agcby/TMWcvRU/d8?=
+ =?us-ascii?Q?YBSE5zHwkg/qlfoVZK4CK/d85spCiitXhCherRQUt7Mm9f3mezTv1gWTIdd2?=
+ =?us-ascii?Q?yugHMe44O6IvQzERl84ld8gSJ/6ARu23rdqjQKoY2bO8cMewLPmxJB4x8PWb?=
+ =?us-ascii?Q?MhqSxiCHIbe3P4+3jN5/W4WQzBvUW7oexr7JfXfnAhYPG2B3FNEJQwDyDkuL?=
+ =?us-ascii?Q?2smiB9MLc3i2+DN9gG+Ez7ywOnxduNnbZaTWpL1xeWskwgla8998ue9qoYzI?=
+ =?us-ascii?Q?lF9rXrUt/6zOm/eOF9w/vDm0zr0ZPRLqDg8e9wQ4FSjKpT5lClNXGhIkl9H2?=
+ =?us-ascii?Q?y/TN9k71EviPgc6FUqhpk7MfuclBLA/z8IrU8jYv8DcvIA88BqgqaXxK+NnE?=
+ =?us-ascii?Q?ESRydTwtsNAuxyVXutwaBmFpezU8a8KYrFBSiIGcFcYdtBCSbA1GMQkI19EY?=
+ =?us-ascii?Q?g4G85Fx+nPbJ51ZmdsE77mAbT8h7GB1orkYSNmiC/e63O9YTfqcp4DJxoA9/?=
+ =?us-ascii?Q?i+aR7kBQmFOZbRqV4GCAN3u1Ahu+RkeadSOaJX8DB5I0kyUyLg5nSHcTAZ++?=
+ =?us-ascii?Q?xhbBddhxZhFeD3ecKJcWHjlPhVddpSkWuoK9gtZqFAW/uRAmef6MELMmeR/E?=
+ =?us-ascii?Q?BHqqSDm4lGi7dSpeCU7KetHwf+fGuaW0Lu2nKmv05dJLioPORwrAnlaYY6zL?=
+ =?us-ascii?Q?KIKGXT2m551+SbjU/PG/zSoaZXGFixq43NQGXFkqtqyYxNcDgBWIXpWnhqpC?=
+ =?us-ascii?Q?IMLCTMWCYSvKNCyzgVaroZwjl8PSTrPFUqaNgHRpPzez38FE8TF50+KoSxoY?=
+ =?us-ascii?Q?2hOGeZDIOljjG438zIynUOPHs5HRC9QtZOoCAB59pOz4gsegCj+njt8aGXtD?=
+ =?us-ascii?Q?43s+z/rjRJrfra0/9XOkW+9z2wNtEtq2iwHQdEJBvv3w6KW4NGSO02m6sl/p?=
+ =?us-ascii?Q?5Ylpzmi2Xb71DvNYnLLTmoShJlCBBrWzTzvkKuNQJ90Zu3u8rrNmQZ2TMkeB?=
+ =?us-ascii?Q?Rw/E7CJipMUnJBcwUaMXIPyn2SL0c8e302CaBAu+bwwibBZ0DkuqY2xvGqI0?=
+ =?us-ascii?Q?LD8uD3wXd7Cm4WawbMtWyPXtnwejwGU1xtJEjxVpwgqLlQuZfIBjoOYr4kXg?=
+ =?us-ascii?Q?ZlbdhzkQCB5YKDAt28s7UWSjsFytzcdFCkg0Hh/EZfNwzeyK+jZw9WwtsCEE?=
+ =?us-ascii?Q?7lruI0c3Pt8ePyMU0mUht78=3D?=
+X-Forefront-Antispam-Report-Untrusted: CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:;PTR:;CAT:NONE;SFS:(13230040)(61400799027)(7149299003)(7049299003)(4022899009)(3109299003)(69100299015)(586017)(376014)(34036016)(54012099003)(13003099007)(4076899003)(8096899003);DIR:OUT;SFP:1102;
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: IA0PPF32ECA008A
+X-CLX-Response: 1TFkXGB0dEQpMehccEhgRCllEF2RcY19na3h5aExnEQpYWBdmfFobZV55SU9
+ jfBEKeE4XbWMYY0MbWHwcTHoRCnlMF2IeYh0dX3JmH2tMEQpDSBcHGBgdEQpDWRcHGR8fEQpDSR
+ caBBoaGhEKWU0XZ2ZyEQpZSRcSH3EZEBp3BhsdGHESHBgdHhAbHBgddwYYGgYaEQpZXhdsbHkRC
+ klGF0dLWFlCR0lGT0RES0R1QkVZXk9OEQpJRxd4T00RCkNOFxlbXGUHeBtJY2tGaHhvY3gYc2d4
+ YkcTYB95B15LG0cZEQpYXBcfBBoEHhsaBRsaBBsbGgQbGR4EGRkQGx4aHxoRCl5ZF00aBWZvEQp
+ NXBcZExkRCkxaF2lNXU0RCkxGF29ra2traxEKQk8Xb0JcRE9mb1B+E0gRCkNaFx8YBBsaGwQbEx
+ kEEhMRCkJeFxsRCkJcFxsRCl5OFxsRCkJLF21jGGNDG1h8HEx6EQpCSRdtYxhjQxtYfBxMehEKQ
+ kUXZEMYS3NBX19HbFMRCkJOF21jGGNDG1h8HEx6EQpCTBdmfFobZV55SU9jfBEKQmwXaFJvSUJT
+ QxltbxwRCkJAF2B+R0dTfUJSS35gEQpCWBdva0N/el1HTxJQexEKWlgXGxIRCnlDF3pdTnNJZUB
+ cXFl4EQpZSxcbGB0bEhEKcGgXYW0cY3NJGBJPQEIQGhEKcGgXY2ZLHUZjRUcZGEUQGx8YEQpwaB
+ dlS3B9X19pZ05nTBAYGxoRCnBoF29GGwFyem8ZE258EBgbHREKcGgXemBkbh5/cEtYQGUQGBoSE
+ QpwaBdjGEFgH0tHXlofXRAbExoRCnBoF254ZXASa2RzXwUSEBsZHREKcGgXekMac0Zfc3hlREsQ
+ HQQTEQpwfRdvb0xFH3kbR0x6HhAbGBoRCnB9F21MZx9cXltdYVNPEBkaEQpwfRdgaG1GeGNJGXx
+ LcxAZGhEKcH0XZ1J7S31rb21oHG4QGx8RCnB9F2NnBXtmBUN7Hhx9EBoRCnB9F2BeQhl9TmxpBU
+ J6EBoRCnB9F2hHHXplQl9YXFMZEBsZEhEKcH0XYGtSe0xkUFlOZ1gQGxgSEQpwfRdnG14cQEd8R
+ nNhGxAZHREKcH0XekJgbFl7UBlDQgUQGxoZEQpwfxdiRmtBEhoFBUtnRRAbGBsRCnBfF2lmHUFh
+ b3BNX0EdEBsaHhEKcF8XZlkdYVtIGG8BGUcQGxkeEQpwXxdjQUxPHmBjXmtEWRAbGBwRCnB/F3o
+ aWEFhXHN+a1NpEBseGREKcF8XbGt5WVx7YWltBXoQGx4aEQpwXxdhYG9IWBthUGdIZhAbHhsRCn
+ BfF20dfHMeTmsSGnNhEBkZEQpwfxdmZ3x8SV5sbWcdRxASHxEKcF8Xbn5CQkJvSEV+RHoQGxoeE
+ QpwbBdnel1vTUgbZB5gXxAbHRwRCm1+FxoRClhNF0sRIA==
+X-Authority-Analysis: v=2.4 cv=KrZAGGWN c=1 sm=1 tr=0 ts=699e4e29 cx=c_pps
+ a=O6Z+/RI5KFzJW3E8GZexRA==:117 a=6eWqkTHjU83fiwn7nKZWdM+Sl24=:19
+ a=z/mQ4Ysz8XfWz/Q5cLBRGdckG28=:19 a=lCpzRmAYbLLaTzLvsPZ7Mbvzbb8=:19
+ a=HzLeVaNsDn8A:10 a=I3jg87b94x0A:10 a=Kan8h273Bse8B8Jy5C1n:22
+ a=Mpw57Om8IfrbqaoTuvik:22 a=GgsMoib0sEa3-_RKJdDe:22 a=yMhMjlubAAAA:8
+ a=R_coYFqEAAAA:8 a=2LZzPA4_G1xhbAIwkCgA:9 a=QEXdDO2ut3YA:10 a=SSmOFEACAAAA:8
+ a=tBzXR3pQAAAA:8 a=BBxrH0ql67g58YvqnhUA:9 a=HcwjTtmTYlxMItW-:21
+ a=gKO2Hq4RSVkA:10 a=wVX1-kvX4GQp4wlGbF6L:22 a=QblqENrG2EuB63Uu9Vw8:22
+X-CLX-Shades: MLX
+X-Proofpoint-GUID: 3qvO-R1cIAlBREIR2YMRHm9J5S-ta1m3
+X-Proofpoint-ORIG-GUID: 3qvO-R1cIAlBREIR2YMRHm9J5S-ta1m3
+X-Proofpoint-Spam-Details-Enc: AW1haW4tMjYwMjI1MDAwOSBTYWx0ZWRfX2MeX+xH+v1sq
+ m5kj7KzDu8Hjife4mz2eN1ZBSxpfU29eRD17Z1MxmVW4M6bBEbsXRVtDJEPeszHS5uqe/yrln1z
+ z8zMH8C4EaB1Z19kINaR/30UrE+/OKOya9pcwxQMpspi7mSotKnhQHDcrsZ3bhve14aLua4tUAz
+ Y9R9oa8vcb1wG1l7kBxAP8LE+zM/rBajQO6xRiKNIqOSECmojuqOoUHYHj0B1aucPZgxZKPZpQ6
+ Wz3758DG7QWWRNV5D9AVu580qHf+8HCGKS33FRb6V8swJCOPQf5WlE3VndGTG65gO2wcBrVAAdH
+ IKF7vBlhlUZ5XnxjVKbOaBl2Oq1ds2OjYFuj35HAyQtFoFHOqOaBtdd3E37SIFxkhAHNMymbsru
+ fGWVZGhsNidOzfAv2jMymAeSnvnBA27/PEpDHgMfAu/PwiikXQ11Y/bH4AsAa2bjQNQ3NtZt6gu
+ VZ/btapncc/7DKd9n1ndEu2WuO87I42HpU6dkznJEvqdw/Q/PUjm+khwO06qM
+X-Proofpoint-Virus-Version: vendor=baseguard
+ engine=ICAP:2.0.293,Aquarius:18.0.1121,Hydra:6.1.51,FMLib:17.12.100.49
+ definitions=2026-02-24_03,2026-02-23_03,2025-10-01_01
+X-Proofpoint-Spam-Details: rule=inbound_relaxed_notspam policy=inbound_relaxed
+ score=0 malwarescore=0 priorityscore=682 impostorscore=0 spamscore=0
+ phishscore=0 suspectscore=0 clxscore=277 lowpriorityscore=0 adultscore=0
+ bulkscore=0 classifier=typeunknown authscore=0 authtc= authcc= route=inbound
+ adjust=0 reason=mlx scancount=1 engine=8.22.0-2601150000
+ definitions=main-2602250009 domainage_hfrom=12718
+X-Proofpoint-Virus-Version: vendor=baseguard
+ engine=ICAP:2.0.293,Aquarius:18.0.1121,Hydra:6.1.51,FMLib:17.12.100.49
+ definitions=2026-02-24_03,2026-02-23_03,2025-10-01_01
+Return-Path: o365mc@microsoft.com
+X-OrganizationHeadersPreserved: iedub11xo06v.mercer.com
+X-MS-Exchange-Organization-ExpirationStartTime: 25 Feb 2026 01:19:54.0499
+ (UTC)
+X-MS-Exchange-Organization-ExpirationStartTimeReason: OriginalSubmit
+X-MS-Exchange-Organization-ExpirationInterval: 1:00:00:00.0000000
+X-MS-Exchange-Organization-ExpirationIntervalReason: OriginalSubmit
+X-MS-Exchange-Organization-Network-Message-Id: b000e125-3d91-4c51-373a-08de740bfb2a
+X-EOPAttributedMessage: 0
+X-MS-Exchange-Organization-MessageDirectionality: Originating
+X-MS-Exchange-SkipListedInternetSender: ip=[52.101.193.89];domain=ch1pr05cu001.outbound.protection.outlook.com
+X-MS-Exchange-ExternalOriginalInternetSender: ip=[52.101.193.89];domain=ch1pr05cu001.outbound.protection.outlook.com
+X-MS-Exchange-Organization-SCL: -1
+X-CrossPremisesHeadersPromoted: CH2PEPF0000009D.namprd02.prod.outlook.com
+X-CrossPremisesHeadersFiltered: CH2PEPF0000009D.namprd02.prod.outlook.com
+X-MS-Exchange-Transport-CrossTenantHeadersStripped: CH2PEPF0000009D.namprd02.prod.outlook.com
+X-MS-PublicTrafficType: Email
+X-MS-Exchange-Organization-AuthSource: iedub11xo02v.mercer.com
+X-MS-Exchange-Organization-AuthAs: Anonymous
+X-OriginatorOrg: mail.company.com
+X-MS-Office365-Filtering-Correlation-Id: b000e125-3d91-4c51-373a-08de740bfb2a
+X-MS-Exchange-AtpMessageProperties: HVE
+X-Microsoft-Antispam: BCL:0;ARA:13230040|2092899012|82310400026|4022899009|6062899009|5082899009|4092899012|5062899012|13102899012|7149299003|13012899012|7049299003|12012899012|3092899012|69100299015|3109299003|3072899012|8096899003|4076899003|13003099007;
+X-Forefront-Antispam-Report: CIP:168.168.33.250;CTRY:US;LANG:en;SCL:-1;SRV:;IPV:NLI;SFV:SFE;H:ch1pr05cu001.outbound.protection.outlook.com;PTR:mail-northcentralusazon11020089.outbound.protection.outlook.com;CAT:NONE;SFS:(13230040)(2092899012)(82310400026)(4022899009)(6062899009)(5082899009)(4092899012)(5062899012)(13102899012)(7149299003)(13012899012)(7049299003)(12012899012)(3092899012)(69100299015)(3109299003)(3072899012)(8096899003)(4076899003)(13003099007);DIR:INB;
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 25 Feb 2026 01:19:53.8483
+ (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: b000e125-3d91-4c51-373a-08de740bfb2a
+X-MS-Exchange-CrossTenant-Id: 00000000-0000-0000-0000-000000000000
+X-MS-Exchange-CrossTenant-OriginalAttributedTenantConnectingIp: TenantId=00000000-0000-0000-0000-000000000000;Ip=[168.168.33.250];Helo=[mail.company.com]
+X-MS-Exchange-CrossTenant-AuthSource: iedub11xo02v.mercer.com
+X-MS-Exchange-CrossTenant-AuthAs: Anonymous
+X-MS-Exchange-CrossTenant-FromEntityHeader: HybridOnPrem
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SJ0PR13MB5474
+X-MS-Exchange-Transport-EndToEndLatency: 00:00:07.7512546
+X-MS-Exchange-Processed-By-BccFoldering: 15.20.9632.007
+X-Microsoft-Antispam-Mailbox-Delivery:
+	wl:1;pcwl:1;ucf:0;jmr:0;auth:0;dest:I;ENG:(910005)(944506478)(944626604)(920097)(811242)(255002)(410001)(930201)(20251009189)(140003);
+X-Microsoft-Antispam-Message-Info:
+	=?utf-8?B?eGR3c0I0U0ZLdEh2ZzllR1NwWlU3NFJaRHhHazV4K0E4SlBDSkdZVTZGaFQ1?=
+ =?utf-8?B?M1RQTVBta2l2OWZsUjl4dGp0RUgyQkpVdXhuZGdLRlJLbUMvUzJ1Q0wrZ0Zn?=
+ =?utf-8?B?TG5Ia3FvMmdNejh4R0xBNFJuMmxENTlGT2piZGh4Sm9IMnhlaXdVOFlpeHNP?=
+ =?utf-8?B?dXJOZUo5NnBBQ0R1LzBjZ3dZWnlScmxXREludGdna3lOTTZPclBCVmJFL3NM?=
+ =?utf-8?B?US92YWtSQnNCTXFSeG5FVTlqRWw0VDJQTXlkcFo0MTJPUGpnemtJMVZCejhu?=
+ =?utf-8?B?SGlGTStqMExoSXhvcCtrZXkvN2hxcDRNQjdFTlIyYXdvV1RDQVFZOEJNdGFD?=
+ =?utf-8?B?T0xaRFF0NDZDMlg4ZENlWnVTNm9Fdm9GT2xVT25xYnNOVHhraE45ZlZNamRK?=
+ =?utf-8?B?elhUK3E4RE9ZSnB3QWdlRmhoZ1ZQR2laRldQbXAvcm5MOVNvYitWU050S2N6?=
+ =?utf-8?B?WWM5Y1htd2dkUi8wbHJ2ZmF2QnJPMUxUK3BIRDQ2OXVCMFJBZmxmaUp3K2dr?=
+ =?utf-8?B?cGFkUTgrYUxYWXhnR0JLeERvOEo1eWlsUDIrdHlnQVM5TEJiTWJ4cG16eHgr?=
+ =?utf-8?B?NlhjN3V0eDF1UkROeEFtc2RzSnN0SHZTYTQ3K0FORmNiR1FrOFNKanlpdG5p?=
+ =?utf-8?B?VURLR3R4SFBic0R3UTZ1cFFJZk1BWGRqYmE4K3VkSXJJTUNGa0MvdXA2NmxT?=
+ =?utf-8?B?NkZ4dWRJbnpoaFVEdVJqTHpEZkJkK2hhNHI0eDRQK1h5U1dpd3I4M2dHay92?=
+ =?utf-8?B?elJaUFJNRVI5b1FDMkFyRkNMckQxd2xYVUFvQjRDQ09ITll0RmxhNnVTeWdL?=
+ =?utf-8?B?c051UTlVNEJlb1BHVEJZT2tILzZPZUNIMDZvSFBQOHR3TXNjbTNCalpxTG1E?=
+ =?utf-8?B?TmtyUXh3Yk1Za3crZ3VtRWQyMFNIWnB3bG12YjFmQm9sUmsrQWNSaFFQYlRB?=
+ =?utf-8?B?RHZsdjVFRTRyY0gwSU45Rkw4eE0wSlg1S0N0Q0U2aVViaFZlTEtqejkzenk2?=
+ =?utf-8?B?R0c2M0pzNzZjNUVYNWpZNzdxZVAwM2EvdlFsdVJSZWYvQ1M2Qm9JOHVJUXRT?=
+ =?utf-8?B?WFBOT1dBZVU5Y2NDbGtHaWZ0blo4RWVPY0JsZXpsOFZnc1RpMU95eUltci9O?=
+ =?utf-8?B?TTNsY2lJLzJ3dW83TUU3bXJHM0N4bWxiZVh3Qk5BT3ZoTndvY1JlclJ5NEJo?=
+ =?utf-8?B?R2cwQUV3MDBJK05GQWNpVDdrTjd1OWxZOHBkd1dHZnQ4UzJwZUlTN2dLbVRD?=
+ =?utf-8?B?bzI1NDByeXA3LzYyZi9TTTg1dFQ0R3ZpYW5QenVkSUtkL2lCL2tYSCs3anlI?=
+ =?utf-8?B?ZUlRcFNtS29pNGxJSStFTzVuNFo1MU04U2ZvaHNwbWRsbC9vV3dGWG9QQlIr?=
+ =?utf-8?B?cmNMeDVKWUtMYXlPSUVBcDg5ZnFBcm1IdVJkNkRmR2tTaUJad2hYYktyQ2o3?=
+ =?utf-8?B?NFFYcDU2OGxISnk3Qm5BRERhTHg5SmZOcEpNbGFFZUdiSCtSakJXVVhoZWsy?=
+ =?utf-8?B?S1FBR05kSUx6QTljVVJkUERlaEhGYm5peC9CakJtN2VST0NtZkZaTFBhUE95?=
+ =?utf-8?B?QXA4RHJ4R21ISjR1S2l1OHNGSEc4R2Z1T3hYVm50Sk02c01VRGp1aEFmMHI2?=
+ =?utf-8?B?Qmd2L2pGb2thc0RTUitpS2lPcFBzU2t1cGgvT1ZNeDZhNU9ISVl1Z0ZpNjVY?=
+ =?utf-8?B?d2NRTEFRM3pMSHI0SXd1RzBacXVhdGQ0Zkg4RVdCSGtoS1RCOHBQeDdoZWZo?=
+ =?utf-8?B?QUt4Zi81OVQzaC80bHp0QklOVkh0bFZ2NU5ZVmRQMHVCVEk5SFRsTnUvVGx2?=
+ =?utf-8?B?VVhhU1ZyR250ZG5xUWQrRXIxclAydnRrYUwwUGFUMjIrRWcwRWsxblJpUmUw?=
+ =?utf-8?B?WlM0SzlLNklDVFpoNjlYMzg4RmJxZjFiM2cxM1FIYUdDT1FpY3JMdUxFeVZk?=
+ =?utf-8?B?NUZ1NmhEVHNOcmhidEpJQ25jOWhJdnFiaE5BM2J3dEFoZE1YeEZLZjJKUnBO?=
+ =?utf-8?B?bldMa0U0emY5dm5mVmFXQ29Ba1UwekdZNmN1VWNyUDlzYS9MbENMakY4Ylll?=
+ =?utf-8?B?UG5DemJsTlNMVTBOTTNSb1Q5NXZ3SGV3WVVMbG8vdi80UVBJOVlkM3Y5cnBy?=
+ =?utf-8?B?OWZjbjkyYXAzYkJheEFMTGFUWkRVaEZkYjlqUWltWDUyN3RRMGtCelFkeDFh?=
+ =?utf-8?B?SG9YNGpNM2x2VFhnQVZIdERmSUZITUFOZVlvQkM5NFVQVEJra1h5N0hQb1JS?=
+ =?utf-8?B?anJUMGY1dm9QZGNZcWRTVGNZRmJFVGZlMFhObzIrd0ZiS3huZndvYVV1MDhx?=
+ =?utf-8?B?M05YV1BxVEVpaW5FTTZpVWVjTlBpNWZsRng1SGFKNGs5bGtsRld2Vk9CL0lu?=
+ =?utf-8?B?bHRLQ2cvVXZDYzljTkxwNzhPZi9UcW1LbnlETUFxdzZTOEJvZFlYaWUzTzhX?=
+ =?utf-8?B?QlFMb09EQk9VVEpMUldML200RnE3Y0wwaHoxcy90eHNrdnJRZjl3NTZ2a000?=
+ =?utf-8?B?TmFzMFhMbVJDUVNndTVwcStCWEptT084cHQ5enlBQXcyUHFORTVFNjY0cHlM?=
+ =?utf-8?B?eGhmVGdLV3JZai90dlQyakY4WU5kaHJqdDFkYU12VDRhd2QxZ3BaRzQyK2Rh?=
+ =?utf-8?B?cmIxcDJBOGpESkcwVUZVZDNsVnlHT3IvODhpKzUyVzlSOVRGa0grZTFRWExB?=
+ =?utf-8?B?L1lwTzZpK29jTXE2em1mc21kUjFTNTBRanExdkRWYVNhZlZxU1FRRnJEY2dD?=
+ =?utf-8?B?eGIrQWprTmNWU3YzcFZUaThIMzBBdVYrN2FJeFRJUGFhQmxhMEhRMFFJSlZF?=
+ =?utf-8?B?MjNGc1ZlQWp3ZVFNY0hFQkFBUmpNODY4RUZrM0xzcmZDVHAybVRoSzBLWTRo?=
+ =?utf-8?B?SnlJSFNKTmptc1ExbXRaRE5IWTd6NGVBajQvd0NtZzVEdmk1UENSeVpGL1l2?=
+ =?utf-8?B?ZHNvSTZmbE9ZdkNtbUFnMmg5Q2FYQ2pST2Q2ejZaMDBqTEhkS0ZkSzFvYVdS?=
+ =?utf-8?B?b04xM3VxVlVZcXJNWXgrb1dnWVRVVlBHM2NMS0NZandwN1BMWitDT2t2cStC?=
+ =?utf-8?B?QVRsbFlvY3R3ZGZxWnlmcWxHK2RWNld0djFFWW1iVm53YzE2bXNXWXVMNHNy?=
+ =?utf-8?B?QXNMQXFyOUdRemdQNlFEcXJuR0V1UUFxSk5EQ1NGOVduYkpDeTFZVnAzakhM?=
+ =?utf-8?B?VXVMMXo2Y1A1ZE94RlZWV2x6MjNESzlwUEhaZzltVVlwVU1VLzA2TzdmNkQr?=
+ =?utf-8?B?ZUtjUEJJQUZaSDB0dGNscVdxMnBQRGt3bWYxeUJ1OHRUZnpXNW1ybnVFQTV1?=
+ =?utf-8?B?VGdzVnlMSHNLVlEwWWkrUUFGSTg4T3pkdmN4YVFJRlhobFhDaklucTFJS1dL?=
+ =?utf-8?B?eVZteE9kZVdLV2pMUUVCdUpKaXpWRk90ZFBtSGNUY0tSQlcrZDdCNVNKZjJ3?=
+ =?utf-8?B?Mi9ibHlvTmNtZG5rdEs4ZzRTMHNRZ24vd3ZRTEtQTGNXR1dmSjlVUmZFREpJ?=
+ =?utf-8?B?aTR3MXR0YndETWVWOWoxY3NOL3BSczJNK1AzT2xHRHJxaktBVG5manZKamFv?=
+ =?utf-8?B?bVlkOEtqQlEva2Fic2tiYml1K2gyblp6eFdYN2sxZkhWdWYxcUNUTlhzRTIx?=
+ =?utf-8?B?cm5PQ2hXc1FqZ3BlMVNCTzNJR1JCTnozam5SZTlUVktMNVFnNm5FU2xEUEdw?=
+ =?utf-8?B?SlZWbm5yenNoR2NpeUtkMDJGNW5MWHd4UzcyK2dka2JtVlpIT004Qkg0cldV?=
+ =?utf-8?B?amQyZjQ1YVhIUXlHM3l3aXBwNUtxdGczOUlacjd1V3doalJacWJzMkxueVky?=
+ =?utf-8?B?VkRsZTcwNGdzbUFrQk9uV21LL2EweEVxUzdtUW1uTndKV090NE01WXRPQXky?=
+ =?utf-8?B?SXM1a1VtT1VwbGErckJIcWRZOS9EdW9WWmQ5L3JYM0NNckNod2ZiNmNrQ0lR?=
+ =?utf-8?Q?m8bA6FuHFiU/34Rb1bN8AInQv+tUmNBnNoZuH1jaBqw=3D?=
+MIME-Version: 1.0
+
+--=-mSWtGdn1p202tXD+iS5Ojw==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+
+CAUTION: This email originated outside the company. Do not click links or o=
+pen attachments unless you are expecting them from the sender.
+
+
+View the description of the update.
+[Microsoft]
+
+
+
+Microsoft Purview eDiscovery Configuration change for PowerShell cmdlet cas=
+e and search synchronization changes
+
+MC1238428 =C2=B7 MMC
+
+Starting March 23, 2026, we=E2=80=99re disabling on=E2=80=91demand synchron=
+ization for eDiscovery cases and searches created, modified, or deleted usi=
+ng PowerShell cmdlets. As a result, cases and searches created through cmdl=
+ets will no longer automatically appear or stay in sync with the eDiscovery=
+ UX.
+
+When this will happen:
+
+March 23, 2026
+
+How this will affect your organization:
+
+You are receiving this message because our reporting indicates your organiz=
+ation may be using eDiscovery tool.
+
+Note: Administrators can identify usage by reviewing PowerShell audit logs =
+or automation scripts that create or manage eDiscovery cases and searches.
+
+eDiscovery users will no longer see cases or searches created, modified or =
+deleted using cmdlets reflected in the eDiscovery UX when this change is im=
+plemented.
+
+What you need to do to prepare:
+
+When this change takes effect, no action is required if you manage cases an=
+d searches exclusively through the eDiscovery UX.
+
+If your organization currently uses PowerShell cmdlets to create or manage =
+eDiscovery cases or searches and expects them to appear in the UX, you will=
+ need to:
+
+  *   Use Microsoft Graph APIs<https://urldefense.com/v3/__https://techcomm=
+unity.microsoft.com/blog/microsoft-security-blog/general-availability-of-mi=
+crosoft-purview-ediscovery-graph-api-for-e3-customers/4489678__;!!O7V3aRRsH=
+kZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczO=
+etz8akI2mqE2jf0$> to create and manage eDiscovery cases and searches.
+  *   Continue using PowerShell cmdlets for backend or automation scenarios=
+ without expecting visibility or synchronization in the UX.
+
+Learn more about eDiscovery: Learn about eDiscovery solutions | Microsoft L=
+earn<https://urldefense.com/v3/__https://learn.microsoft.com/en-us/purview/=
+edisc?view=3Do365-worldwide__;!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvS=
+pF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2owkK2Cf$>
+
+Learn more about Graph API for eDiscovery: Use Microsoft Purview APIs for e=
+Discovery | Microsoft Learn <https://urldefense.com/v3/__https://learn.micr=
+osoft.com/en-us/purview/edisc-ref-api-guide__;!!O7V3aRRsHkZJLA!DHlCR4pymWnS=
+f0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2lN_M9il$>
+
+Compliance considerations:
+
+Compliance area Explanation
+Does the change modify, interrupt, or disable any Purview capabilities (eDi=
+scovery or Content Search)?  This change disables on=E2=80=91demand synchro=
+nization between PowerShell=E2=80=91managed eDiscovery cases and searches a=
+nd the eDiscovery user experience (UX). While eDiscovery functionality rema=
+ins available through PowerShell and Microsoft Graph APIs, cases and search=
+es created, modified, or deleted via cmdlets will no longer appear or stay =
+in sync within the eDiscovery UX.
+Does the change alter how admins can monitor, report on, or demonstrate com=
+pliance activities?  Administrators who rely on the eDiscovery UX to review=
+ or manage cases and searches created through automation will no longer see=
+ those objects reflected in the UI. Monitoring, reporting, and compliance w=
+orkflows may need to shift to Microsoft Graph APIs, PowerShell audit logs, =
+or automation tooling to maintain visibility.
+
+View in the Microsoft 365 admin center<https://urldefense.com/v3/__https://=
+nam.safelink.emails.azure.net/redirect/?destination=3Dhttps*3A*2F*2Fadmin.m=
+icrosoft.com*2FAdminPortal*2Fhome*23*2FMessageCenter*2F*3A*2Fmessages*2FMC1=
+238428*3FMCLinkSource*3DMajorUpdate&p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC0=
+1NWJmNWY4NWNlZWMmdT1hZW8mbD1ob21l__;JSUlJSUlJSUlJSUlJQ!!O7V3aRRsHkZJLA!DHlC=
+R4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2o6=
+3lkkb$>
+
+
+
+
+
+Did you find this email helpful? Yes<https://urldefense.com/v3/__https://na=
+m.safelink.emails.azure.net/trackingfeedback/?p=3DbT05YTAyOWVmZi1kYzBiLTQ4N=
+2QtYjA0OC01NWJmNWY4NWNlZWMmZj1Qb3NpdGl2ZSZiPWVuLXVzJmE9Mi8yNS8yMDI2IDE6MTk6=
+MzMgQU0mdT1hZW8*3D__;JQ!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3=
+HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2tXCFtIN$> No<https://urldefense.c=
+om/v3/__https://nam.safelink.emails.azure.net/trackingfeedback/?p=3DbT05YTA=
+yOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmZj1OZWdhdGl2ZSZiPWVuLXVzJmE9Mi=
+8yNS8yMDI2IDE6MTk6MzMgQU0mdT1hZW8*3D__;JQ!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL=
+8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2n6OJ0dZ$>
+
+
+
+You're subscribed to this email using testadmin@company.com. If you're a=
+n IT admin, you're subscribed by default, but you can unsubscribe at any ti=
+me<https://urldefense.com/v3/__https://nam.safelink.emails.azure.net/redire=
+ct/?destination=3Dhttps*3A*2F*2Fadmin.microsoft.com*2FAdminPortal*2Fhome*23=
+*2FMessageCenter*2F*3A*2Fmcpreferences&p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0=
+OC01NWJmNWY4NWNlZWMmdT1hZW8mbD1ob21lXzI*3D__;JSUlJSUlJSUlJSU!!O7V3aRRsHkZJL=
+A!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8=
+akI2j5hP3q8$>. If you're not an IT admin, ask your admin to remove your ema=
+il address from Microsoft 365 message center preferences.
+
+How to view translated messages<https://urldefense.com/v3/__https://nam.saf=
+elink.emails.azure.net/redirect/?destination=3Dhttps*3A*2F*2Fdocs.microsoft=
+.com*2Fen-us*2Fmicrosoft-365*2Fadmin*2Fmanage*2Flanguage-translation-for-me=
+ssage-center-posts*3Fview*3Do365-worldwide&p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2Qt=
+YjA0OC01NWJmNWY4NWNlZWMmdT1hZW8mbD1sYW5ndWFnZS10cmFuc2xhdGlvbi1mb3ItbWVzc2F=
+nZS1jZW50ZXItcG9zdHM*3D__;JSUlJSUlJSUlJSU!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL=
+8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2o1zIq1b$>
+
+
+
+Privacy Statement<https://urldefense.com/v3/__https://nam.safelink.emails.a=
+zure.net/redirect/?destination=3Dhttps*3A*2F*2Fgo.microsoft.com*2Ffwlink*2F=
+*3FLinkId*3D521839&p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMm=
+dT1hZW8mbD1wcml2YWN5LXN0YXRlbWVudA*3D*3D__;JSUlJSUlJSUl!!O7V3aRRsHkZJLA!DHl=
+CR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2h=
+UZufu9$>
+
+Microsoft Corporation, One Microsoft Way, =E2=80=8BRedmond, WA 98052=E2=80=
+=8B
+
+[Microsoft]
+
+
+
+
+
+[https://nam.safelink.emails.azure.net/trackingpixel/?p=3DbT05YTAyOWVmZi1kY=
+zBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmdT1hZW8%3D]
+
+--=-mSWtGdn1p202tXD+iS5Ojw==
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns=3D"https://www.w3.org/1999/xhtml" lang=3D"en" xmlns:v=3D"urn:sc=
+hemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-microsoft-com:office:office=
+" style=3D"min-height: 100%;background: #ffffff"><head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf-8">
+<meta name=3D"viewport" content=3D"width=3Ddevice-width">
+<meta name=3D"eventId" content=3D"m365-message-center-major-update">
+<meta name=3D"messageId" content=3D"9a029eff-dc0b-487d-b048-55bf5f85ceec">
+<meta name=3D"cloud" content=3D"AZ">
+<title>Major update from Message center</title>
+<style id=3D"mediaqueries">@media only screen and (max-width: 640px) {
+  .wrap-dangler {
+    padding-right: 10% !important;
+    mso-padding-right-alt: 10% !important;
+  }
+
+  .wrap-dangler.small-text-center .wrap-dangler.text-center {
+    padding-left: 10% !important;
+    mso-padding-left-alt: 10% !important;
+    padding-right: 10% !important;
+    mso-padding-right-alt: 10% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  p.comment-border-right {
+    margin-left: 0 !important;
+    Margin-left: 0 !important;
+    mso-margin-left-alt: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  p.comment-border-left {
+    margin-left: 0 !important;
+    Margin-left: 0 !important;
+    mso-margin-left-alt: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .small-float-left {
+    margin-left: 0 !important;
+    float: none !important;
+    text-align: left !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .show-for-large {
+    display: none !important;
+    width: 0;
+    mso-hide: all;
+    overflow: hidden;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .wrap-dangler {
+    padding-right: 10% !important;
+    mso-padding-right-alt: 10% !important;
+  }
+
+  .wrap-dangler.small-text-center .wrap-dangler.text-center {
+    padding-left: 10% !important;
+    mso-padding-left-alt: 10% !important;
+    padding-right: 10% !important;
+    mso-padding-right-alt: 10% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  p.comment-border-right {
+    margin-left: 0 !important;
+    Margin-left: 0 !important;
+    mso-margin-left-alt: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  p.comment-border-left {
+    margin-left: 0 !important;
+    Margin-left: 0 !important;
+    mso-margin-left-alt: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .small-float-left {
+    margin-left: 0 !important;
+    float: none !important;
+    text-align: left !important;
+  }
+}
+
+@media only screen {
+  html {
+    min-height: 100%;
+    background: #ffffff;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .small-float-center {
+    margin: 0 auto !important;
+    float: none !important;
+    text-align: center !important;
+  }
+
+  .small-text-center {
+    text-align: center !important;
+  }
+
+  .small-text-left {
+    text-align: left !important;
+  }
+
+  .small-text-right {
+    text-align: right !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .hide-for-large {
+    display: block !important;
+    width: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  table.body table.container .hide-for-large,
+  table.body table.container .row.hide-for-large {
+    display: table !important;
+    width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  table.body table.container .callout-inner.hide-for-large {
+    display: table-cell !important;
+    width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  table.body table.container .show-for-large {
+    display: none !important;
+    width: 0;
+    mso-hide: all;
+    overflow: hidden;
+  }
+}
+
+@media only screen {
+  a[x-apple-data-detectors] {
+    color: inherit !important;
+    text-decoration: none !important;
+    font-size: inherit !important;
+    font-family: inherit !important;
+    font-weight: inherit !important;
+    line-height: inherit !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .menu.small-vertical .menu-item {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  table.body img {
+    width: auto;
+    height: auto;
+  }
+
+  table.body center {
+    min-width: 0 !important;
+  }
+
+  table.body .container {
+    width: 95% !important;
+  }
+
+  table.body .columns,
+  table.body .column {
+    height: auto !important;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  table.body .columns .column,
+  table.body .columns .columns,
+  table.body .column .column,
+  table.body .column .columns {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  table.body .collapse .columns,
+  table.body .collapse .column {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  td.small-1,
+  th.small-1 {
+    display: inline-block !important;
+    width: 8.33333% !important;
+  }
+
+  td.small-2,
+  th.small-2 {
+    display: inline-block !important;
+    width: 16.66667% !important;
+  }
+
+  td.small-3,
+  th.small-3 {
+    display: inline-block !important;
+    width: 25% !important;
+  }
+
+  td.small-4,
+  th.small-4 {
+    display: inline-block !important;
+    width: 33.33333% !important;
+  }
+
+  td.small-5,
+  th.small-5 {
+    display: inline-block !important;
+    width: 41.66667% !important;
+  }
+
+  td.small-6,
+  th.small-6 {
+    display: inline-block !important;
+    width: 50% !important;
+  }
+
+  td.small-7,
+  th.small-7 {
+    display: inline-block !important;
+    width: 58.33333% !important;
+  }
+
+  td.small-8,
+  th.small-8 {
+    display: inline-block !important;
+    width: 66.66667% !important;
+  }
+
+  td.small-9,
+  th.small-9 {
+    display: inline-block !important;
+    width: 75% !important;
+  }
+
+  td.small-10,
+  th.small-10 {
+    display: inline-block !important;
+    width: 83.33333% !important;
+  }
+
+  td.small-11,
+  th.small-11 {
+    display: inline-block !important;
+    width: 91.66667% !important;
+  }
+
+  td.small-12,
+  th.small-12 {
+    display: inline-block !important;
+    width: 100% !important;
+  }
+
+  .columns td.small-12,
+  .column td.small-12,
+  .columns th.small-12,
+  .column th.small-12 {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  table.body td.small-offset-1,
+  table.body th.small-offset-1 {
+    margin-left: 8.33333% !important;
+    Margin-left: 8.33333% !important;
+  }
+
+  table.body td.small-offset-2,
+  table.body th.small-offset-2 {
+    margin-left: 16.66667% !important;
+    Margin-left: 16.66667% !important;
+  }
+
+  table.body td.small-offset-3,
+  table.body th.small-offset-3 {
+    margin-left: 25% !important;
+    Margin-left: 25% !important;
+  }
+
+  table.body td.small-offset-4,
+  table.body th.small-offset-4 {
+    margin-left: 33.33333% !important;
+    Margin-left: 33.33333% !important;
+  }
+
+  table.body td.small-offset-5,
+  table.body th.small-offset-5 {
+    margin-left: 41.66667% !important;
+    Margin-left: 41.66667% !important;
+  }
+
+  table.body td.small-offset-6,
+  table.body th.small-offset-6 {
+    margin-left: 50% !important;
+    Margin-left: 50% !important;
+  }
+
+  table.body td.small-offset-7,
+  table.body th.small-offset-7 {
+    margin-left: 58.33333% !important;
+    Margin-left: 58.33333% !important;
+  }
+
+  table.body td.small-offset-8,
+  table.body th.small-offset-8 {
+    margin-left: 66.66667% !important;
+    Margin-left: 66.66667% !important;
+  }
+
+  table.body td.small-offset-9,
+  table.body th.small-offset-9 {
+    margin-left: 75% !important;
+    Margin-left: 75% !important;
+  }
+
+  table.body td.small-offset-10,
+  table.body th.small-offset-10 {
+    margin-left: 83.33333% !important;
+    Margin-left: 83.33333% !important;
+  }
+
+  table.body td.small-offset-11,
+  table.body th.small-offset-11 {
+    margin-left: 91.66667% !important;
+    Margin-left: 91.66667% !important;
+  }
+
+  table.body table.columns td.expander,
+  table.body table.columns th.expander {
+    display: none !important;
+  }
+
+  table.body .right-text-pad,
+  table.body .text-pad-right {
+    padding-left: 12px !important;
+  }
+
+  table.body .left-text-pad,
+  table.body .text-pad-left {
+    padding-right: 12px !important;
+  }
+
+  table.menu {
+    width: 100% !important;
+  }
+
+  table.menu td,
+  table.menu th {
+    width: auto !important;
+    display: inline-block !important;
+  }
+
+  table.menu.vertical td,
+  table.menu.vertical th,
+  table.menu.small-vertical td,
+  table.menu.small-vertical th {
+    display: block !important;
+  }
+
+  table.menu[align=3D"center"] {
+    width: auto !important;
+  }
+
+  table.button.small-expand,
+  table.button.small-expanded {
+    width: 100% !important;
+  }
+
+  table.button.small-expand table,
+  table.button.small-expanded table {
+    width: 100%;
+  }
+
+  table.button.small-expand table a,
+  table.button.small-expanded table a {
+    text-align: center !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  table.button.small-expand center,
+  table.button.small-expanded center {
+    min-width: 0;
+  }
+}
+
+@media (min-resolution: 1dpi) {
+  body[data-outlook-cycle] .main-container > table {
+    width: 640px;
+  }
+
+  body[data-outlook-cycle] .container-wide .main-container > table {
+    width: 888px;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .outer-wrapper > tbody > tr > .wrapper-inner,
+  table.body .columns,
+  table.body .column {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .main-container > .float-center {
+    width: 100%;
+  }
+}
+
+@media only screen and (max-width: 888px) {
+  body.container-wide .main-container > table {
+    width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  table.button.secondary a {
+    font-size: 16px !important;
+    line-height: 22px !important;
+  }
+
+  .header-right-column table.button table td a {
+    font-size: 13px !important;
+    line-height: 1 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table th:first-child {
+    padding-bottom: 0px !important;
+    mso-padding-bottom-alt: 0px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table td,
+  .section .card-table th:last-child {
+    padding-top: 0px !important;
+    mso-padding-top-alt: 0px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table.mobile-padding td {
+    padding-top: 8px !important;
+    mso-padding-top-alt: 8px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table tr.border-top td,
+  .section .card-table tr.border-top th:last-child {
+    border: none !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table.no-stack tr.border-top td,
+  .section .card-table.no-stack tr.border-top th {
+    border-top: 1px solid #dedede !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-table.no-stack th,
+  .section .card-table.no-stack td {
+    padding-top: 8px !important;
+    mso-padding-top-alt: 8px !important;
+    padding-bottom: 8px !important;
+    mso-padding-bottom-alt: 8px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-row .columns.first {
+    padding-bottom: 0px !important;
+    mso-padding-bottom-alt: 0px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .section .card-row .columns.last {
+    padding-top: 0px !important;
+    mso-padding-top-alt: 0px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .header-section .stack-for-small th {
+    display: block;
+    width: 100% !important;
+  }
+
+  .header-section .stack-for-small .header-right-column {
+    padding-bottom: 0 !important;
+    padding-top: 24px !important;
+  }
+
+  .header-section .stack-for-small .header-right-column,
+  .header-section .stack-for-small .header-right-column p {
+    text-align: left !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .logo-microsoft-azure {
+    max-height: 21px;
+    max-width: 100%;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .logo-microsoft-viva {
+    max-height: 21px;
+    max-width: 100%;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .logo-microsoft-dynamic365 {
+    max-height: 21px;
+    max-width: 100%;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .list-row .columns.first,
+  .list-row .list-items {
+    padding-bottom: 0 !important;
+    mso-padding-bottom-alt: 0 !important;
+  }
+
+  .list-row .columns.last,
+  .list-row .list-items {
+    padding-top: 0 !important;
+    mso-padding-top-alt: 0 !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .number-bar .interior-bar td {
+    padding-top: 0px !important;
+    mso-padding-top-alt: 0px !important;
+    padding-bottom: 0px !important;
+    mso-padding-bottom-alt: 0px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .small-display-block {
+    display: block !important;
+  }
+
+  .small-text-medium {
+    font-size: 18px !important;
+  }
+
+  .small-text-left {
+    text-align: left !important;
+  }
+
+  .small-bottom-padding-8 {
+    padding-bottom: 8px !important;
+    mso-padding-bottom-alt: 8px !important;
+  }
+
+  .small-top-padding-0 {
+    padding-top: 0 !important;
+    mso-padding-top-alt: 0 !important;
+  }
+
+  .video-container img {
+    margin-bottom: 10px;
+    Margin-bottom: 10px;
+    mso-margin-bottom-alt: 10px;
+  }
+
+  .video-container .video-thumbnail img {
+    max-width: 580px;
+    width: 300px;
+  }
+
+  .list-items p {
+    text-align: left !important;
+    font-size: 20px;
+  }
+
+  .list-items p,
+  .list-items img {
+    line-height: 13px !important;
+    mso-line-height-alt: 13px;
+    margin-bottom: 8px;
+    Margin-bottom: 8px;
+    mso-margin-bottom-alt: 8px;
+    text-align: left;
+  }
+
+  .list-items img {
+    vertical-align: middle !important;
+    margin-top: 5px !important;
+  }
+
+  .list-items.bullet-small th img {
+    padding-top: 0;
+    mso-padding-top-alt: 0;
+  }
+
+  table.body {
+    min-width: 320px !important;
+  }
+
+  table.body .main-container {
+    padding: 0 !important;
+  }
+
+  table.body .main-container > table.container {
+    min-width: 300px !important;
+  }
+
+  table.body table.container {
+    width: 100% !important;
+  }
+
+  .header-section img {
+    height: auto !important;
+  }
+
+  .header-section .small-6,
+  .header-section .large-3,
+  .header-section .large-6 {
+    margin-top: 0px;
+    Margin-top: 0px;
+    mso-margin-top-alt: 0px;
+    margin-bottom: 0px;
+    Margin-bottom: 0px;
+    mso-margin-bottom-alt: 0px;
+  }
+
+  .header-section .heading-container {
+    margin-bottom: 0px;
+    Margin-bottom: 0px;
+    mso-margin-bottom-alt: 0px;
+  }
+
+  .header-section .heading-container p {
+    font-family: Segoe UI, SegoeUI, Roboto, "Helvetica Neue", Arial, sans-s=
+erif;
+  }
+
+  .header-section p.amount-title {
+    line-height: 16px;
+    mso-line-height-alt: 16px;
+    font-size: 12px !important;
+    word-wrap: break-word !important;
+    margin: 0 15px 10px 15px;
+    mso-margin-alt: 0 15px 10px 15px;
+    padding-top: 0 !important;
+  }
+
+  .header-section p.amount-value {
+    font-size: 24px;
+    line-height: 18px;
+    mso-line-height-alt: 18px;
+    margin: 0 15px 10px 15px;
+    mso-margin-alt: 0 15px 10px 15px;
+    padding: 0;
+  }
+
+  .section .columns {
+    padding-top: 0px;
+    mso-padding-top-alt: 0px;
+    padding-bottom: 0px;
+    mso-padding-bottom-alt: 0px;
+  }
+
+  .section .show-for-small {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    mso-height-alt: auto !important;
+    max-height: none !important;
+    mso-max-height-alt: none !important;
+    mso-hide: none !important;
+    overflow: visible !important;
+  }
+
+  table.footer-template p {
+    font-size: 12px !important;
+    line-height: 16px !important;
+  }
+
+  .wrapper.wrapper-inner-540-large .wrapper-inner .container {
+    width: 100%;
+  }
+
+  .wrapper.wrapper-inner-20 .wrapper-inner {
+    padding-left: 0px !important;
+    mso-padding-left-alt: 0px !important;
+    padding-right: 20px !important;
+    mso-padding-right-alt: 20px !important;
+  }
+
+  .no-pad-for-small table th {
+    padding-left: 0px !important;
+    mso-padding-left-alt: 0px !important;
+    padding-right: 0px !important;
+    mso-padding-right-alt: 0px !important;
+  }
+
+  .large-pad-left table th {
+    padding-left: 0px !important;
+    mso-padding-left-alt: 0px !important;
+  }
+
+  .large-pad-right table th {
+    padding-right: 0px !important;
+    mso-padding-right-alt: 0px !important;
+  }
+
+  .max-width img {
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 888px) {
+  .max-width img {
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .button {
+    min-width: 132px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .standard-table td {
+    padding-bottom: 5px !important;
+    mso-padding-bottom-alt: 5px !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .table-default.table-heading-rows,
+  .table-default.table-heading-rows-loop {
+    display: table !important;
+  }
+
+  .table-default.table-heading-rows th,
+  .table-default.table-heading-rows td,
+  .table-default.table-heading-rows-loop th,
+  .table-default.table-heading-rows-loop td {
+    padding: 0 !important;
+    mso-padding-alt: 0 !important;
+    display: block;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 6px !important;
+  }
+
+  .table-default.table-heading-rows td,
+  .table-default.table-heading-rows-loop td {
+    border-top: none !important;
+    padding-bottom: 6px !important;
+    padding-top: none !important;
+  }
+
+  .table-default.table-heading-rows td.wrap-word,
+  .table-default.table-heading-rows .code-block td.wrapper-inner,
+  .code-block .table-default.table-heading-rows td.wrapper-inner,
+  .table-default.table-heading-rows .code-block-azns td.wrapper-inner,
+  .code-block-azns .table-default.table-heading-rows td.wrapper-inner,
+  .table-default.table-heading-rows-loop td.wrap-word,
+  .table-default.table-heading-rows-loop .code-block td.wrapper-inner,
+  .code-block .table-default.table-heading-rows-loop td.wrapper-inner,
+  .table-default.table-heading-rows-loop .code-block-azns td.wrapper-inner,
+  .code-block-azns .table-default.table-heading-rows-loop td.wrapper-inner =
+{
+    display: block !important;
+  }
+
+  .table-default.table-heading-rows th,
+  .table-default.table-heading-rows-loop th {
+    width: 100% !important;
+    padding-bottom: none !important;
+    padding-top: 6px !important;
+  }
+
+  .table-default.table-heading-rows.no-stack td,
+  .table-default.table-heading-rows-loop.no-stack td {
+    padding-left: 12px !important;
+  }
+
+  .table-default.table-heading-rows.no-stack td.wrap-word,
+  .table-default.table-heading-rows.no-stack .code-block td.wrapper-inner,
+  .code-block .table-default.table-heading-rows.no-stack td.wrapper-inner,
+  .table-default.table-heading-rows.no-stack .code-block-azns td.wrapper-in=
+ner,
+  .code-block-azns .table-default.table-heading-rows.no-stack td.wrapper-in=
+ner,
+  .table-default.table-heading-rows-loop.no-stack td.wrap-word,
+  .table-default.table-heading-rows-loop.no-stack .code-block td.wrapper-in=
+ner,
+  .code-block .table-default.table-heading-rows-loop.no-stack td.wrapper-in=
+ner,
+  .table-default.table-heading-rows-loop.no-stack .code-block-azns td.wrapp=
+er-inner,
+  .code-block-azns .table-default.table-heading-rows-loop.no-stack td.wrapp=
+er-inner {
+    display: table-cell;
+  }
+
+  .table-default.table-heading-rows.no-stack th,
+  .table-default.table-heading-rows-loop.no-stack th {
+    width: 1% !important;
+    padding-right: 12px !important;
+  }
+
+  .table-default.table-heading-rows.no-stack:first-child th,
+  .table-default.table-heading-rows.no-stack:first-child td,
+  .table-default.table-heading-rows.no-stack .table-heading-rows-loop:first=
+-child th,
+  .table-default.table-heading-rows.no-stack .table-heading-rows-loop:first=
+-child td,
+  .table-default.table-heading-rows-loop.no-stack:first-child th,
+  .table-default.table-heading-rows-loop.no-stack:first-child td,
+  .table-default.table-heading-rows-loop.no-stack .table-heading-rows-loop:=
+first-child th,
+  .table-default.table-heading-rows-loop.no-stack .table-heading-rows-loop:=
+first-child td {
+    border-top: none !important;
+  }
+
+  .table-default.table-heading-rows.no-stack th,
+  .table-default.table-heading-rows.no-stack td,
+  .table-default.table-heading-rows-loop.no-stack th,
+  .table-default.table-heading-rows-loop.no-stack td {
+    display: table-cell !important;
+    border-top: solid 1px #dedede !important;
+    padding-top: 8px !important;
+    mso-padding-top-alt: 8px !important;
+    padding-bottom: 8px !important;
+    mso-padding-bottom-alt: 8px !important;
+  }
+
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop th,
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop td,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop t=
+h,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop t=
+d {
+    border-top: none !important;
+  }
+
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop .table=
+-row-loop-start:first-child th,
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop .table=
+-row-loop-start:first-child td,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop .=
+table-row-loop-start:first-child th,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop .=
+table-row-loop-start:first-child td {
+    border-top: none !important;
+  }
+
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop .table=
+-row-loop-start th,
+  .table-default.table-heading-rows.no-stack.table-heading-rows-loop .table=
+-row-loop-start td,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop .=
+table-row-loop-start th,
+  .table-default.table-heading-rows-loop.no-stack.table-heading-rows-loop .=
+table-row-loop-start td {
+    border-top: solid 1px #dedede !important;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .power-bi.container-mooncake .header-section img {
+    height: auto !important;
+    max-height: 16px;
+    max-width: 100%;
+  }
+}
+
+@media only screen and (max-width: 640px) {
+  .synapse-reflex.container-mooncake .header-section img {
+    height: auto !important;
+    max-height: 16px;
+    max-width: 100%;
+  }
+}</style><!--[if gte (gte mso 9)|(IE)]>
+        <xml>
+            <o:OfficeDocumentSettings>
+            <o:AllowPNG/>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+        <style>
+            li {
+                text-align:-webkit-match-parent;
+                display:list-item;
+                text-indent: -1em;
+            }
+
+            .alert span,
+            .arrow-link,
+            b,
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            .heading-group th,
+            strong,
+            .card-table th,
+            .header-right-column,
+            .styled-table th,
+            .styled-table td,
+            .text-heading1,
+            .text-heading2,
+            .text-heading3,
+            .text-heading4,
+            .text-heading5,
+            .text-bold,
+            table.button a,
+            .wrapper-inner a,
+            .wrapper-inner p {
+                font-weight: 400 !important;
+            }
+        </style>
+    <![endif]-->
+</head>
+<body class=3D" ltr " dir=3D"ltr" style=3D"width: 100%;min-width: 100%;-web=
+kit-text-size-adjust: 100%;-ms-text-size-adjust: 100%;padding: 0;-moz-box-s=
+izing: border-box;-webkit-box-sizing: border-box;box-sizing: border-box;col=
+or: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&qu=
+ot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;pad=
+ding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;l=
+ine-height: 20px">
+<div>&nbsp;</div>
+<table>
+<tbody>
+<tr>
+<td style=3D"background-color:#FFF4CA; border:solid #C98414 1pt; padding:3p=
+t 5pt;">
+<div style=3D"font-size:10pt; font-family:Calibri,Arial,Helvetica,sans-seri=
+f; color:#000000; text-align:left;">
+<span style=3D"color:#C98414"><b>CAUTION:</b></span> This email originated =
+outside the company. Do not click links or open attachments unless you are =
+expecting them from the sender.</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div>&nbsp;</div>
+<div>
+<div class=3D"preheader" style=3D"display: none;visibility: hidden;opacity:=
+ 0;color: #f4f4f4;height: 0;width: 0;line-height: 1px;font-size: 1px;max-he=
+ight: 0;max-width: 0;overflow: hidden;mso-hide: all">
+View the description of the update.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+<table role=3D"presentation" class=3D"body " data-made-with-foundation=3D"d=
+ata-made-with-foundation" style=3D"border-spacing: 0;border-collapse: colla=
+pse;vertical-align: top;mso-table-lspace: -1pt;mso-table-rspace: -1pt;backg=
+round: #ffffff;height: 100%;width: 100%;color: #11100f;font-family: Segoe U=
+I, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weig=
+ht: 400;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;M=
+argin: 0;text-align: left;font-size: 14px;line-height: 20px">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td class=3D"float-center" align=3D"center" valign=3D"top" style=3D"word-wr=
+ap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto;hyphens: auto;borde=
+r-collapse: collapse;vertical-align: top;color: #11100f;font-family: Segoe =
+UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-wei=
+ght: 400;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;=
+font-size: 14px;line-height: 20px;Margin: 0 auto;float: none;text-align: ce=
+nter">
+<center class=3D"main-container" style=3D"width: 100%;min-width: 640px">
+<table role=3D"presentation" bgcolor=3D"#ffffff" align=3D"center" class=3D"=
+float-center" style=3D"border-spacing: 0;border-collapse: collapse;padding-=
+top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-align: t=
+op;mso-table-lspace: -1pt;mso-table-rspace: -1pt;Margin: 0 auto;float: none=
+;text-align: center">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<table role=3D"presentation" dir=3D"ltr" align=3D"center" class=3D"containe=
+r header-container section" style=3D"border-spacing: 0;border-collapse: col=
+lapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ver=
+tical-align: top;mso-table-lspace: -1pt;mso-table-rspace: -1pt;background: =
+#ffffff;width: 640px;Margin: 0 auto;text-align: inherit">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<table role=3D"presentation" align=3D"left" class=3D"wrapper outer-wrapper =
+text-left" style=3D"border-spacing: 0;border-collapse: collapse;padding-top=
+: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-align: top;=
+mso-table-lspace: -1pt;mso-table-rspace: -1pt;width: 100%;text-align: left"=
+>
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td class=3D"wrapper-inner" style=3D"word-wrap: break-word;-webkit-hyphens:=
+ auto;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-a=
+lign: top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helv=
+etica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-right: 0;paddi=
+ng-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height: 20px;pad=
+ding-top: 0;mso-padding-top-alt: 0;padding-bottom: 0;mso-padding-bottom-alt=
+: 0">
+<table role=3D"presentation" align=3D"left" class=3D"row header-section tex=
+t-left" style=3D"border-spacing: 0;border-collapse: collapse;padding-top: 0=
+;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-align: top;mso=
+-table-lspace: -1pt;mso-table-rspace: -1pt;padding: 0;width: 100%;position:=
+ relative;text-align: left;display: table">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th class=3D"text-left small-12 large-12 columns first last" align=3D"left"=
+ style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto;hy=
+phens: auto;border-collapse: collapse;vertical-align: top;color: #11100f;fo=
+nt-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sa=
+ns-serif;font-weight: 400;font-size: 14px;line-height: 20px;Margin: 0 auto;=
+width: 616px;text-align: left;padding-left: 24px;padding-right: 24px;paddin=
+g-top: 24px;mso-padding-top-alt: 24px;padding-bottom: 24px;mso-padding-bott=
+om-alt: 24px">
+<table role=3D"presentation" style=3D"border-spacing: 0;border-collapse: co=
+llapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ve=
+rtical-align: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace:=
+ -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<img height=3D"20" width=3D"auto" src=3D"https://images.ecomm.microsoft.com=
+/cdn/mediahandler/azure-emails-templates/production/shared/images/templates=
+/shared/microsoft-2x.png" alt=3D"Microsoft" title=3D"Microsoft" class=3D"lo=
+go-microsoft text-left" style=3D"outline: none;text-decoration: none;-ms-in=
+terpolation-mode: bicubic;max-width: 100%;clear: both;display: block;height=
+: 20px;max-height: 20px;width: auto">
+</th>
+<th class=3D"expander" style=3D"word-wrap: break-word;-webkit-hyphens: auto=
+;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-align:=
+ top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica=
+ Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-righ=
+t: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size=
+: 14px;line-height: 20px;visibility: hidden;width: 0;padding: 0">
+</th>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table role=3D"presentation" align=3D"center" class=3D"container template-c=
+ontainer section" style=3D"border-spacing: 0;border-collapse: collapse;padd=
+ing-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-alig=
+n: top;mso-table-lspace: -1pt;mso-table-rspace: -1pt;background: #ffffff;wi=
+dth: 640px;Margin: 0 auto;text-align: inherit">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<table role=3D"presentation" class=3D"wrapper outer-wrapper" align=3D"cente=
+r" style=3D"border-spacing: 0;border-collapse: collapse;padding-top: 0;padd=
+ing-right: 0;padding-bottom: 0;padding-left: 0;vertical-align: top;text-ali=
+gn: left;mso-table-lspace: -1pt;mso-table-rspace: -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td class=3D"wrapper-inner" style=3D"word-wrap: break-word;-webkit-hyphens:=
+ auto;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-a=
+lign: top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helv=
+etica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-right: 0;paddi=
+ng-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height: 20px;pad=
+ding-bottom: 12px;mso-padding-bottom-alt: 12px;padding-top: 6px;mso-padding=
+-top-alt: 6px">
+<center style=3D"width: 100%;min-width: 640px">
+<table role=3D"presentation" align=3D"center" class=3D"row float-center" st=
+yle=3D"border-spacing: 0;border-collapse: collapse;padding-top: 0;padding-r=
+ight: 0;padding-bottom: 0;padding-left: 0;vertical-align: top;mso-table-lsp=
+ace: -1pt;mso-table-rspace: -1pt;padding: 0;width: 100%;position: relative;=
+Margin: 0 auto;float: none;text-align: center;display: table">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th class=3D"small-12 large-12 columns first last" style=3D"word-wrap: brea=
+k-word;-webkit-hyphens: auto;-moz-hyphens: auto;hyphens: auto;border-collap=
+se: collapse;vertical-align: top;color: #11100f;font-family: Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400=
+;text-align: left;font-size: 14px;line-height: 20px;Margin: 0 auto;width: 6=
+16px;padding-bottom: 12px;mso-padding-bottom-alt: 12px;padding-left: 24px;p=
+adding-right: 24px;padding-top: 6px;mso-padding-top-alt: 6px">
+<table role=3D"presentation" style=3D"border-spacing: 0;border-collapse: co=
+llapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ve=
+rtical-align: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace:=
+ -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<h1 style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;Margin: 0;text-align: left;color: inherit;Margin-bottom: 16px;-webkit-h=
+yphens: none;-moz-hyphens: none;-ms-hyphens: none;hyphens: none;letter-spac=
+ing: -.01em;font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+;font-size: 28px;line-height: 36px;mso-line-height-alt: 36px;word-wrap: nor=
+mal;-webkit-text-size-adjust: none">
+Microsoft Purview eDiscovery Configuration change for PowerShell cmdlet cas=
+e and search synchronization changes</h1>
+<p class=3D"text-mini-2 margin-bottom-24" style=3D"color: #11100f;font-fami=
+ly: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-seri=
+f;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom: 0;paddin=
+g-left: 0;Margin: 0;text-align: left;mso-line-height-alt: 22px;word-wrap: n=
+ormal;-webkit-text-size-adjust: none;Margin-bottom: 24px;mso-margin-bottom-=
+alt: 24px;font-size: 14px;line-height: 22px">
+<strong style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI,=
+ SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight=
+: 600">MC1238428 =C2=B7 MMC</strong></p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+Starting March 23, 2026, we=E2=80=99re disabling on=E2=80=91demand synchron=
+ization for eDiscovery cases and searches created, modified, or deleted usi=
+ng PowerShell cmdlets. As a result, cases and searches created through cmdl=
+ets will no longer automatically appear or stay
+ in sync with the eDiscovery UX. </p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+"></b></p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+">When this will happen:</b></p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+March 23, 2026</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+">How this will affect your organization:</b>
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+You are receiving this message because our reporting indicates your organiz=
+ation may be using eDiscovery tool.
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+">Note:</b> Administrators can identify usage by reviewing PowerShell audit=
+ logs or automation scripts that create or manage
+ eDiscovery cases and searches. </p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+eDiscovery users will no longer see cases or searches created, modified or =
+deleted using cmdlets reflected in the eDiscovery UX when this change is im=
+plemented.
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+">What you need to do to prepare:</b>
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+When this change takes effect, no action is required if you manage cases an=
+d searches exclusively through the eDiscovery UX.
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+If your organization currently uses PowerShell cmdlets to create or manage =
+eDiscovery cases or searches and expects them to appear in the UX, you will=
+ need to:
+</p>
+<ul>
+<li style=3D"font-size: 16px;line-height: 22px;mso-line-height-alt: 22px"><=
+a href=3D"https://urldefense.com/v3/__https://techcommunity.microsoft.com/b=
+log/microsoft-security-blog/general-availability-of-microsoft-purview-edisc=
+overy-graph-api-for-e3-customers/4489678__;!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0d=
+CL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2mqE2jf0$" tar=
+get=3D"_blank" style=3D"color: #0078d4;font-family: Segoe UI, SegoeUI, Robo=
+to, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding:=
+ 0;text-align: left;line-height: 20px;text-decoration: none;text-underline:=
+ none;mso-text-underline: none">Use
+ Microsoft Graph APIs</a> to create and manage eDiscovery cases and searche=
+s. </li><li style=3D"font-size: 16px;line-height: 22px;mso-line-height-alt:=
+ 22px">Continue using PowerShell cmdlets for backend or automation scenario=
+s without expecting visibility or synchronization in the UX.
+</li></ul>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+Learn more about eDiscovery: <a href=3D"https://urldefense.com/v3/__https:/=
+/learn.microsoft.com/en-us/purview/edisc?view=3Do365-worldwide__;!!O7V3aRRs=
+HkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjcz=
+Oetz8akI2owkK2Cf$" target=3D"_blank" style=3D"color: #0078d4;font-family: S=
+egoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;fon=
+t-weight: 400;padding: 0;text-align: left;line-height: 20px;text-decoration=
+: none;text-underline: none;mso-text-underline: none;Margin: inherit;mso-ma=
+rgin-alt: inherit">
+Learn about eDiscovery solutions | Microsoft Learn</a> </p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+Learn more about Graph API for eDiscovery: <a href=3D"https://urldefense.co=
+m/v3/__https://learn.microsoft.com/en-us/purview/edisc-ref-api-guide__;!!O7=
+V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVt=
+QzqjczOetz8akI2lN_M9il$" target=3D"_blank" style=3D"color: #0078d4;font-fam=
+ily: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-ser=
+if;font-weight: 400;padding: 0;text-align: left;line-height: 20px;text-deco=
+ration: none;text-underline: none;mso-text-underline: none;Margin: inherit;=
+mso-margin-alt: inherit">
+Use Microsoft Purview APIs for eDiscovery | Microsoft Learn&nbsp;</a></p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+<b style=3D"font-family: Segoe UI Semibold, SegoeUISemibold, Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 600=
+">Compliance considerations:</b></p>
+<table style=3D"border-spacing: 0;border-collapse: collapse;padding-top: 0;=
+padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-align: top;text=
+-align: left;mso-table-lspace: -1pt;mso-table-rspace: -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+Compliance area</th>
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+Explanation</th>
+</tr>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+Does the change modify, interrupt, or disable any Purview capabilities (eDi=
+scovery or Content Search)?</td>
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+This change disables on=E2=80=91demand synchronization between PowerShell=
+=E2=80=91managed eDiscovery cases and searches and the eDiscovery user expe=
+rience (UX). While eDiscovery functionality remains available through Power=
+Shell and Microsoft Graph APIs, cases and searches
+ created, modified, or deleted via cmdlets will no longer appear or stay in=
+ sync within the eDiscovery UX.</td>
+</tr>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+Does the change alter how admins can monitor, report on, or demonstrate com=
+pliance activities?</td>
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+Administrators who rely on the eDiscovery UX to review or manage cases and =
+searches created through automation will no longer see those objects reflec=
+ted in the UI. Monitoring, reporting, and compliance workflows may need to =
+shift to Microsoft Graph APIs, PowerShell
+ audit logs, or automation tooling to maintain visibility.</td>
+</tr>
+</tbody>
+</table>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 12px;mso-margin-bottom-alt: =
+12px">
+</p>
+<p style=3D"color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;He=
+lvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;paddi=
+ng-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;fo=
+nt-size: 16px;line-height: 22px;mso-line-height-alt: 22px;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 0;mso-margin-bottom-alt: 0">
+<a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.azure.ne=
+t/redirect/?destination=3Dhttps*3A*2F*2Fadmin.microsoft.com*2FAdminPortal*2=
+Fhome*23*2FMessageCenter*2F*3A*2Fmessages*2FMC1238428*3FMCLinkSource*3DMajo=
+rUpdate&amp;p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmdT1hZW8=
+mbD1ob21l__;JSUlJSUlJSUlJSUlJQ!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvS=
+pF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2o63lkkb$" style=3D"color: =
+#0078d4;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;,=
+ Arial, sans-serif;font-weight: 400;padding: 0;text-align: left;line-height=
+: 20px;text-decoration: none;text-underline: none;mso-text-underline: none;=
+Margin: inherit;mso-margin-alt: inherit">View
+ in the Microsoft 365 admin center</a></p>
+</th>
+<th class=3D"expander" style=3D"word-wrap: break-word;-webkit-hyphens: auto=
+;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-align:=
+ top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica=
+ Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-righ=
+t: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size=
+: 14px;line-height: 20px;visibility: hidden;width: 0;padding: 0">
+</th>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</center>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table role=3D"presentation" dir=3D"ltr" align=3D"center" class=3D"containe=
+r footer-template" style=3D"border-spacing: 0;border-collapse: collapse;pad=
+ding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-ali=
+gn: top;mso-table-lspace: -1pt;mso-table-rspace: -1pt;background: #ffffff;w=
+idth: 640px;Margin: 0 auto;text-align: inherit">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<table role=3D"presentation" class=3D"wrapper outer-wrapper footer-wrapper"=
+ align=3D"center" style=3D"border-spacing: 0;border-collapse: collapse;padd=
+ing-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;vertical-alig=
+n: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace: -1pt;width=
+: 100%;background-color: #F0F0F0">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<td class=3D"wrapper-inner" style=3D"word-wrap: break-word;-webkit-hyphens:=
+ auto;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-a=
+lign: top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helv=
+etica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-right: 0;paddi=
+ng-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height: 20px;pad=
+ding-top: 12px;mso-padding-top-alt: 12px;padding-bottom: 12px;mso-padding-b=
+ottom-alt: 12px">
+<center style=3D"width: 100%;min-width: 640px">
+<table role=3D"presentation" class=3D"row preFooter" style=3D"border-spacin=
+g: 0;border-collapse: collapse;padding-top: 0;padding-right: 0;padding-bott=
+om: 0;padding-left: 0;vertical-align: top;text-align: left;mso-table-lspace=
+: -1pt;mso-table-rspace: -1pt;padding: 0;width: 100%;position: relative;dis=
+play: table">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th class=3D"small-12 large-12 columns first last" style=3D"word-wrap: brea=
+k-word;-webkit-hyphens: auto;-moz-hyphens: auto;hyphens: auto;border-collap=
+se: collapse;vertical-align: top;color: #11100f;font-family: Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400=
+;text-align: left;font-size: 14px;line-height: 20px;Margin: 0 auto;padding-=
+left: 24px;padding-right: 24px;padding-top: 12px;mso-padding-top-alt: 12px;=
+padding-bottom: 12px;mso-padding-bottom-alt: 12px;width: auto">
+<table role=3D"presentation" style=3D"border-spacing: 0;border-collapse: co=
+llapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ve=
+rtical-align: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace:=
+ -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<p style=3D"font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&qu=
+ot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;pad=
+ding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 0;mso-margin-bottom-alt: 0;f=
+ont-size: 12px;line-height: 16px;mso-line-height-alt: 16px;color: #484644">
+<span class=3D"margin-right-12" style=3D"Margin-right: 12px;mso-margin-righ=
+t-alt: 12px">Did you find this email helpful?
+</span><a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.a=
+zure.net/trackingfeedback/?p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4=
+NWNlZWMmZj1Qb3NpdGl2ZSZiPWVuLXVzJmE9Mi8yNS8yMDI2IDE6MTk6MzMgQU0mdT1hZW8*3D_=
+_;JQ!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVz=
+SjlW3pVtQzqjczOetz8akI2tXCFtIN$" class=3D"margin-right-12" style=3D"font-fa=
+mily: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-se=
+rif;font-weight: 400;padding: 0;text-align: left;line-height: 20px;Margin-r=
+ight: 12px;mso-margin-right-alt: 12px;color: #484644;display: inline-block;=
+text-decoration: underline;text-underline: single">Yes</a>
+<a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.azure.ne=
+t/trackingfeedback/?p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWM=
+mZj1OZWdhdGl2ZSZiPWVuLXVzJmE9Mi8yNS8yMDI2IDE6MTk6MzMgQU0mdT1hZW8*3D__;JQ!!O=
+7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pV=
+tQzqjczOetz8akI2n6OJ0dZ$" style=3D"font-family: Segoe UI, SegoeUI, Roboto, =
+&quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding: 0;t=
+ext-align: left;line-height: 20px;color: #484644;display: inline-block;text=
+-decoration: underline;text-underline: single">
+No</a> </p>
+</th>
+<th class=3D"expander" style=3D"word-wrap: break-word;-webkit-hyphens: auto=
+;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-align:=
+ top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica=
+ Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-righ=
+t: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size=
+: 14px;line-height: 20px;visibility: hidden;width: 0;padding: 0">
+</th>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+<table role=3D"presentation" class=3D"row preFooter" style=3D"border-spacin=
+g: 0;border-collapse: collapse;padding-top: 0;padding-right: 0;padding-bott=
+om: 0;padding-left: 0;vertical-align: top;text-align: left;mso-table-lspace=
+: -1pt;mso-table-rspace: -1pt;padding: 0;width: 100%;position: relative;dis=
+play: table">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th class=3D"small-12 large-12 columns first last" style=3D"word-wrap: brea=
+k-word;-webkit-hyphens: auto;-moz-hyphens: auto;hyphens: auto;border-collap=
+se: collapse;vertical-align: top;color: #11100f;font-family: Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400=
+;text-align: left;font-size: 14px;line-height: 20px;Margin: 0 auto;padding-=
+left: 24px;padding-right: 24px;padding-top: 12px;mso-padding-top-alt: 12px;=
+padding-bottom: 12px;mso-padding-bottom-alt: 12px;width: auto">
+<table role=3D"presentation" style=3D"border-spacing: 0;border-collapse: co=
+llapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ve=
+rtical-align: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace:=
+ -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<p class=3D"text-mini" style=3D"font-family: Segoe UI, SegoeUI, Roboto, &qu=
+ot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;=
+padding-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: le=
+ft;Margin-bottom: 12px;word-wrap: normal;-webkit-text-size-adjust: none;fon=
+t-size: 12px;line-height: 16px;mso-line-height-alt: 16px;color: #484644">
+</p>
+<p style=3D"font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&qu=
+ot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;pad=
+ding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;Margin-bottom: 12=
+px;word-wrap: normal;-webkit-text-size-adjust: none;font-size: 12px;line-he=
+ight: 16px;mso-line-height-alt: 16px;color: #484644">
+You're subscribed to this email using testadmin@company.com. If you're a=
+n IT admin, you're subscribed by default, but you can
+<a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.azure.ne=
+t/redirect/?destination=3Dhttps*3A*2F*2Fadmin.microsoft.com*2FAdminPortal*2=
+Fhome*23*2FMessageCenter*2F*3A*2Fmcpreferences&amp;p=3DbT05YTAyOWVmZi1kYzBi=
+LTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmdT1hZW8mbD1ob21lXzI*3D__;JSUlJSUlJSUlJSU!!O=
+7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pV=
+tQzqjczOetz8akI2j5hP3q8$" style=3D"font-family: Segoe UI, SegoeUI, Roboto, =
+&quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding: 0;t=
+ext-align: left;line-height: 20px;color: #484644;display: inline-block;text=
+-decoration: underline;text-underline: single">
+unsubscribe at any time</a>. If you're not an IT admin, ask your admin to r=
+emove your email address from Microsoft 365 message center preferences.</p>
+<p style=3D"font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&qu=
+ot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;pad=
+ding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;Margin-bottom: 12=
+px;word-wrap: normal;-webkit-text-size-adjust: none;font-size: 12px;line-he=
+ight: 16px;mso-line-height-alt: 16px;color: #484644">
+<a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.azure.ne=
+t/redirect/?destination=3Dhttps*3A*2F*2Fdocs.microsoft.com*2Fen-us*2Fmicros=
+oft-365*2Fadmin*2Fmanage*2Flanguage-translation-for-message-center-posts*3F=
+view*3Do365-worldwide&amp;p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4N=
+WNlZWMmdT1hZW8mbD1sYW5ndWFnZS10cmFuc2xhdGlvbi1mb3ItbWVzc2FnZS1jZW50ZXItcG9z=
+dHM*3D__;JSUlJSUlJSUlJSU!!O7V3aRRsHkZJLA!DHlCR4pymWnSf0dCL8iN_i8O8IvSpF8lAa=
+3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2o1zIq1b$" style=3D"font-family: =
+Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;fo=
+nt-weight: 400;padding: 0;text-align: left;line-height: 20px;color: #484644=
+;display: inline-block;text-decoration: underline;text-underline: single">H=
+ow
+ to view translated messages</a></p>
+<p style=3D"font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&qu=
+ot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;pad=
+ding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;word-wrap: normal=
+;-webkit-text-size-adjust: none;Margin-bottom: 0;mso-margin-bottom-alt: 0;f=
+ont-size: 12px;line-height: 16px;mso-line-height-alt: 16px;color: #484644">
+</p>
+</th>
+<th class=3D"expander" style=3D"word-wrap: break-word;-webkit-hyphens: auto=
+;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-align:=
+ top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica=
+ Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-righ=
+t: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size=
+: 14px;line-height: 20px;visibility: hidden;width: 0;padding: 0">
+</th>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+<table role=3D"presentation" class=3D"row" style=3D"border-spacing: 0;borde=
+r-collapse: collapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padd=
+ing-left: 0;vertical-align: top;text-align: left;mso-table-lspace: -1pt;mso=
+-table-rspace: -1pt;padding: 0;width: 100%;position: relative;display: tabl=
+e">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th class=3D"small-12 large-12 columns first last" style=3D"word-wrap: brea=
+k-word;-webkit-hyphens: auto;-moz-hyphens: auto;hyphens: auto;border-collap=
+se: collapse;vertical-align: top;color: #11100f;font-family: Segoe UI, Sego=
+eUI, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400=
+;text-align: left;font-size: 14px;line-height: 20px;Margin: 0 auto;padding-=
+left: 24px;padding-right: 24px;padding-top: 12px;mso-padding-top-alt: 12px;=
+padding-bottom: 12px;mso-padding-bottom-alt: 12px;width: auto">
+<table role=3D"presentation" style=3D"border-spacing: 0;border-collapse: co=
+llapse;padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;ve=
+rtical-align: top;text-align: left;mso-table-lspace: -1pt;mso-table-rspace:=
+ -1pt;width: 100%">
+<tbody>
+<tr style=3D"padding-top: 0;padding-right: 0;padding-bottom: 0;padding-left=
+: 0;vertical-align: top;text-align: left">
+<th style=3D"word-wrap: break-word;-webkit-hyphens: auto;-moz-hyphens: auto=
+;hyphens: auto;border-collapse: collapse;vertical-align: top;color: #11100f=
+;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica Neue&quot;, Arial,=
+ sans-serif;font-weight: 400;padding-top: 0;padding-right: 0;padding-bottom=
+: 0;padding-left: 0;Margin: 0;text-align: left;font-size: 14px;line-height:=
+ 20px">
+<p class=3D"margin-bottom-0" style=3D"font-family: Segoe UI, SegoeUI, Robot=
+o, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-t=
+op: 0;padding-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-ali=
+gn: left;word-wrap: normal;-webkit-text-size-adjust: none;Margin-bottom: 0p=
+x;mso-margin-bottom-alt: 0px;font-size: 12px;line-height: 16px;mso-line-hei=
+ght-alt: 16px;color: #484644">
+<a href=3D"https://urldefense.com/v3/__https://nam.safelink.emails.azure.ne=
+t/redirect/?destination=3Dhttps*3A*2F*2Fgo.microsoft.com*2Ffwlink*2F*3FLink=
+Id*3D521839&amp;p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmdT1=
+hZW8mbD1wcml2YWN5LXN0YXRlbWVudA*3D*3D__;JSUlJSUlJSUl!!O7V3aRRsHkZJLA!DHlCR4=
+pymWnSf0dCL8iN_i8O8IvSpF8lAa3HWwEIocuaZMTER74xVzSjlW3pVtQzqjczOetz8akI2hUZu=
+fu9$" title=3D"Privacy Statement" style=3D"font-family: Segoe UI, SegoeUI, =
+Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padd=
+ing: 0;text-align: left;line-height: 20px;color: #484644;display: inline-bl=
+ock;text-decoration: underline;text-underline: single">Privacy
+ Statement</a> </p>
+<p class=3D"margin-top-8" style=3D"font-family: Segoe UI, SegoeUI, Roboto, =
+&quot;Helvetica Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top:=
+ 0;padding-right: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align:=
+ left;Margin-bottom: 12px;word-wrap: normal;-webkit-text-size-adjust: none;=
+Margin-top: 8px;mso-margin-top-alt: 8px;font-size: 12px;line-height: 16px;m=
+so-line-height-alt: 16px;color: #484644">
+Microsoft Corporation, <span class=3D"no-wrap" style=3D"display: inline-blo=
+ck;word-break: keep-all;hyphens: none">
+One Microsoft Way, =E2=80=8BRedmond, WA 98052=E2=80=8B</span></p>
+<img height=3D"20" width=3D"auto" class=3D"logo-microsoft" src=3D"https://i=
+mages.ecomm.microsoft.com/cdn/mediahandler/azure-emails-templates/productio=
+n/shared/images/templates/shared/images/logos/microsoft-logo-2x.png" alt=3D=
+"Microsoft" title=3D"Microsoft" style=3D"outline: none;text-decoration: non=
+e;-ms-interpolation-mode: bicubic;max-width: 100%;clear: both;display: bloc=
+k;height: 20px;max-height: 20px;width: auto">
+</th>
+<th class=3D"expander" style=3D"word-wrap: break-word;-webkit-hyphens: auto=
+;-moz-hyphens: auto;hyphens: auto;border-collapse: collapse;vertical-align:=
+ top;color: #11100f;font-family: Segoe UI, SegoeUI, Roboto, &quot;Helvetica=
+ Neue&quot;, Arial, sans-serif;font-weight: 400;padding-top: 0;padding-righ=
+t: 0;padding-bottom: 0;padding-left: 0;Margin: 0;text-align: left;font-size=
+: 14px;line-height: 20px;visibility: hidden;width: 0;padding: 0">
+</th>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</center>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</center>
+</td>
+</tr>
+</tbody>
+</table>
+<img height=3D"" width=3D"auto" src=3D"https://nam.safelink.emails.azure.ne=
+t/trackingpixel/?p=3DbT05YTAyOWVmZi1kYzBiLTQ4N2QtYjA0OC01NWJmNWY4NWNlZWMmdT=
+1hZW8%3D" alt=3D"" role=3D"presentation" style=3D"outline: none;text-decora=
+tion: none;-ms-interpolation-mode: bicubic;width: auto;max-width: 100%;clea=
+r: both;display: block">
+</div>
+</body>
+</html>
+
+--=-mSWtGdn1p202tXD+iS5Ojw==--
