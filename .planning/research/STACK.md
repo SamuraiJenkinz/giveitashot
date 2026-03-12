@@ -1,518 +1,223 @@
-# Technology Stack Additions for Major Update Detection
+# Stack Research: Graph API Migration
 
-**Project:** InboxIQ - M365 Message Center Major Updates Digest
-**Researched:** 2026-02-23
-**Overall Confidence:** MEDIUM
-
-## Executive Summary
-
-The new Message Center major update detection feature requires **minimal stack additions** — the existing exchangelib and Azure OpenAI capabilities are sufficient. The primary requirement is pattern-based detection using **email metadata, subject/body regex patterns, and LLM classification** rather than specialized libraries.
-
-**Key Finding:** M365 Message Center emails lack standardized, programmatically-accessible identifiers in their structure. Detection must rely on heuristic pattern matching of sender addresses, subject lines, and body content.
-
-## Stack Assessment: No New Dependencies Required
-
-### Existing Stack (Fully Adequate)
-
-| Technology | Current Version | Capability | Sufficiency |
-|------------|-----------------|------------|-------------|
-| **exchangelib** | ≥5.4.0 | EWS email filtering, metadata access | ✅ Complete |
-| **openai** | ≥1.0.0 | Azure OpenAI text classification | ✅ Complete |
-| Python stdlib | 3.10+ | `re` module for regex pattern matching | ✅ Complete |
-
-**Rationale:** Message Center detection is a classification problem solvable with:
-1. **Regex patterns** on sender/subject/body (Python stdlib `re`)
-2. **LLM classification** on email content (existing Azure OpenAI integration)
-3. **EWS filtering** on sender domains (existing exchangelib capabilities)
-
-No specialized NLP libraries (scikit-learn, spaCy) are warranted for this use case.
+**Project:** InboxIQ v2.0 — EWS to Microsoft Graph API Migration
+**Researched:** 2026-03-12
+**Scope:** Stack additions/changes required to replace exchangelib with Graph API
+**Overall Confidence:** HIGH
 
 ---
 
-## Detection Strategy & Stack Integration
+## Recommended Stack Changes
 
-### Layer 1: Sender-Based Pre-Filtering (exchangelib)
+### Summary
 
-**Capability:** Filter emails by sender domain before detailed analysis
+| Change | Action | Reason |
+|--------|--------|--------|
+| `exchangelib` | REMOVE | Being replaced entirely |
+| `msal` | KEEP, re-scope | Same library, different token scope |
+| `httpx` | KEEP, repurpose | Already in requirements, used for Graph REST calls |
+| `azure-identity` | DO NOT ADD | SDK route not recommended (see below) |
+| `msgraph-sdk` | DO NOT ADD | Async-only SDK has friction in sync daemon scripts |
+
+### Net result: zero new dependencies
+
+The migration replaces `exchangelib` with direct Graph REST calls using `httpx` (already present at `>=0.27.0`) and MSAL for token acquisition (already present at `>=1.28.0`). No packages are added; one package is removed.
+
+---
+
+## Microsoft Graph SDK vs Direct REST
+
+**Recommendation: Use direct REST calls via httpx + MSAL. Do not add msgraph-sdk.**
+
+### Why Not msgraph-sdk (1.55.0, released 2026-02-20)
+
+The official Microsoft Graph Python SDK (`msgraph-sdk`) is async-first by design. This is correct for web apps and services, but creates genuine friction for InboxIQ's use case: a synchronous daemon script invoked by Windows Task Scheduler.
+
+**The core problem — asyncio event loop management:**
+
+The SDK provides only an async API. Daemon scripts must wrap calls with `asyncio.run()`, but a known SDK issue (GitHub issue #366, confirmed still open as of 2025) causes failures when multiple `asyncio.run()` calls are made in sequence: the event loop is closed after the first call, and all subsequent calls raise `RuntimeError: Event loop is closed`. The workaround is to manage a persistent event loop manually — which defeats the simplicity benefit of using the SDK.
+
+**Additional SDK concerns:**
+
+- Package size: 25.8 MB wheel with hundreds of generated model files for every Graph API resource. InboxIQ uses two endpoints: list messages and send mail. This is significant overhead.
+- Requires `azure-identity` as a new dependency (the SDK does not integrate directly with the existing `msal` token acquisition; it uses `ClientSecretCredential` from `azure-identity`).
+- Kiota-generated client adds an abstraction layer that is harder to debug and test than plain HTTP calls.
+
+### Why Direct REST via httpx + MSAL Works Well
+
+**httpx is already present.** The existing `requirements.txt` already pins `httpx>=0.27.0`. InboxIQ already uses it as a transitive dependency via `openai`. Zero new installation required.
+
+**MSAL already handles the token.** The current `EWSAuthenticator` class acquires tokens via `msal.ConfidentialClientApplication.acquire_token_for_client()`. The only change is the scope: `https://outlook.office365.com/.default` (EWS) becomes `https://graph.microsoft.com/.default` (Graph). The token caching, silent refresh, and error handling code remain identical.
+
+**Graph REST API is stable and simple for this use case.** InboxIQ needs two operations:
+
+| Operation | Endpoint | Complexity |
+|-----------|----------|------------|
+| Read inbox | `GET /v1.0/users/{mailbox}/messages` | Low — filter, select, top, orderby |
+| Send mail | `POST /v1.0/users/{sender}/sendMail` | Low — JSON body with to/cc/bcc/from |
+
+Both are covered by a single Bearer token header and straightforward JSON. No pagination complexity for InboxIQ's typical volume (hourly batches, ~100 email max).
+
+**Synchronous code stays synchronous.** No event loop management, no `asyncio.run()`, no `await`. The replacement `GraphClient` class is a drop-in synchronous wrapper — matching the existing `EWSClient` contract exactly.
+
+---
+
+## Authentication (MSAL Integration)
+
+### What Changes
+
+The existing `EWSAuthenticator` in `src/auth.py` is 90% reusable. Only the token scope changes.
+
+| Aspect | Current (EWS) | New (Graph) |
+|--------|---------------|-------------|
+| MSAL class | `ConfidentialClientApplication` | Same |
+| Flow | `acquire_token_for_client` | Same |
+| Cache | Silent refresh via `acquire_token_silent` | Same |
+| Scope | `https://outlook.office365.com/.default` | `https://graph.microsoft.com/.default` |
+| Credentials | CLIENT_ID, CLIENT_SECRET, TENANT_ID | Same values |
+
+The `EWSAuthenticator.get_ews_credentials()` method (which constructs `OAuth2Credentials` for exchangelib) is removed. Its replacement is a `get_access_token()` method that returns a raw Bearer token string — which is exactly what `httpx` requests need.
+
+### Token Use Pattern
 
 ```python
-# Existing exchangelib filter() method supports sender filtering
-inbox.filter(
-    datetime_received__gte=since,
-    sender__icontains='microsoft.com'
-).order_by('-datetime_received')
+# src/auth.py — no structural change needed
+class GraphAuthenticator:
+    SCOPES = ["https://graph.microsoft.com/.default"]
+
+    def get_access_token(self) -> str:
+        result = self.app.acquire_token_silent(scopes=self.SCOPES, account=None)
+        if not result:
+            result = self.app.acquire_token_for_client(scopes=self.SCOPES)
+        # error handling identical to current code
+        return result["access_token"]
+
+# src/graph_client.py — usage
+headers = {"Authorization": f"Bearer {self._auth.get_access_token()}"}
+response = self._http.get(url, headers=headers, params=params)
 ```
 
-**Verified Sender Patterns:**
-- **Legitimate:** `@email2.microsoft.com` (per Microsoft Q&A confirmation)
-- **Custom domain:** `no-reply@sharepointonline.com` → `no-reply@{tenant}.com` (when configured)
-- **Not legitimate:** `@microsoft.com`, `o365mc@microsoft.com` (phishing addresses)
+### App Registration Changes (Exchange Side)
 
-**Stack Integration:**
-- Use existing `EWSClient.get_shared_mailbox_emails()` method
-- Add optional `sender_filter` parameter to reduce search space
-- No new dependencies required
+The same Entra app registration is used. No new app registration is needed. The admin adds Graph permissions to the existing registration:
 
-**Confidence:** HIGH (verified with official Microsoft documentation)
+1. In Azure Portal > App Registrations > [existing app] > API Permissions:
+   - Add `Mail.Read` (Application) — for reading shared mailbox
+   - Add `Mail.Send` (Application) — for sending digest emails
+   - Grant admin consent for both
 
-### Layer 2: Subject/Body Pattern Detection (Python stdlib re)
+2. Optionally (recommended for Marsh McLennan's security posture): Configure Exchange Online RBAC for Applications to scope access to the specific shared mailbox only (see Permissions section below).
 
-**Capability:** Regex-based pattern matching on email metadata
+The existing `EWS.AccessAsApp` permission on the app registration can be removed once the migration is complete.
 
-**Verified Patterns:**
+### azure-identity Is NOT Required
 
-**Subject Line Indicators:**
-```python
-# Message Center posts have MC#### identifiers
-mc_id_pattern = r'\bMC\d{7}\b'  # e.g., "MC1234567"
+The `azure-identity` package (`ClientSecretCredential`) is required only when using the `msgraph-sdk` SDK. For direct REST calls with MSAL token acquisition, `azure-identity` adds nothing and should not be added.
 
-# Major update subject format (confirmed by Microsoft documentation)
-major_update_subjects = [
-    r'Major update from Message center',
-    r'Message Center Major Change',
-]
-```
+**Confidence:** HIGH — verified against Microsoft official authentication provider documentation and MSAL Python documentation.
 
-**Body Content Indicators:**
-```python
-# Tags appear in Message Center post bodies
-tag_patterns = {
-    'major_update': r'(?i)(major update|major change)',
-    'admin_impact': r'(?i)admin impact',
-    'user_impact': r'(?i)user impact',
-    'retirement': r'(?i)retirement',
+---
+
+## Required Graph API Permissions
+
+### Minimum Permissions (Entra App Registration)
+
+| Permission | Type | Purpose | Confidence |
+|------------|------|---------|------------|
+| `Mail.Read` | Application | Read emails from shared mailbox inbox | HIGH |
+| `Mail.Send` | Application | Send digest emails as/from configured sender | HIGH |
+
+Both require admin consent. Both are Application permissions (not Delegated) — correct for daemon/service apps using client credentials flow.
+
+### Important: Mail.Read.Shared Does NOT Apply
+
+`Mail.Read.Shared` is a **delegated** permission only. It does not function with application (client credentials) tokens. With application `Mail.Read`, the app can access any mailbox in the tenant using `/users/{mailbox}/messages`. This is the correct approach for InboxIQ.
+
+**Confidence:** HIGH — verified against Microsoft Graph permissions reference and multiple Q&A answers on Microsoft Learn.
+
+### Sending As the Shared Mailbox (SendAs)
+
+The current EWS implementation uses `author=Mailbox(email_address=send_from)` to send from a configured "from" address (which may differ from the authenticated user account — this is the `SEND_FROM` / `USER_EMAIL` config split).
+
+In Graph, the equivalent is setting the `from` property in the message JSON:
+
+```json
+{
+  "message": {
+    "from": { "emailAddress": { "address": "shared-mailbox@mmc.com" } },
+    "toRecipients": [...],
+    "subject": "...",
+    "body": { "contentType": "HTML", "content": "..." }
+  }
 }
-
-# Action deadline patterns
-deadline_pattern = r'(?i)(act by|deadline|action required by|must.*by).*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})'
 ```
 
-**Stack Integration:**
-- Python stdlib `re` module (no new dependency)
-- Add `MessageCenterDetector` class using regex patterns
-- Extend `Email` dataclass with `is_message_center: bool` property
+The endpoint used is `POST /v1.0/users/{sender_upn}/sendMail` where `sender_upn` is the authenticated app's configured sender identity (equivalent to `Config.USER_EMAIL`). Setting `from` to a different address requires that the sender has SendAs or Send on Behalf permission for that address in Exchange Online — the same requirement as EWS. No new Exchange delegation setup is needed if it already works with EWS.
 
-**Confidence:** MEDIUM (subject format verified, body structure inferred from documentation)
+**Confidence:** HIGH — verified against official Microsoft Graph documentation on sending from another user.
 
-### Layer 3: LLM-Based Classification (Existing Azure OpenAI)
+### Scoping Access to Specific Mailboxes (Optional but Recommended)
 
-**Capability:** High-confidence classification when pattern matching is ambiguous
+By default, `Mail.Read` application permission grants access to all mailboxes in the tenant. For Marsh McLennan's environment, consider configuring Exchange Online RBAC for Applications to scope the app to only the specific shared mailbox:
 
-**Use Case:** Distinguish Message Center emails from similarly-formatted Microsoft notifications
-
-```python
-# Leverage existing LLMSummarizer infrastructure
-classification_prompt = """
-Analyze this email and determine:
-1. Is this a Microsoft 365 Message Center notification? (yes/no)
-2. If yes, does it have a "Major Update" tag? (yes/no)
-3. What is the deadline for action, if any? (date or "none")
-
-Email subject: {subject}
-Email sender: {sender}
-Email body excerpt: {body_preview}
-"""
+```powershell
+# Run in Exchange Online PowerShell
+New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SERVICE_PRINCIPAL_OBJECT_ID> -DisplayName "InboxIQ"
+New-ManagementScope -Name "InboxIQ-Mailbox" -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'shared@mmc.com'"
+New-ManagementRoleAssignment -App <SERVICE_PRINCIPAL_OBJECT_ID> -Role "Application Mail.Read" -CustomResourceScope "InboxIQ-Mailbox"
+New-ManagementRoleAssignment -App <SERVICE_PRINCIPAL_OBJECT_ID> -Role "Application Mail.Send" -CustomResourceScope "InboxIQ-Mailbox"
 ```
 
-**Stack Integration:**
-- Use existing `LLMSummarizer` class and Azure OpenAI client
-- Add `classify_message_center_email()` method
-- Fallback to regex patterns if LLM unavailable (existing pattern)
+Note: After scoping via Exchange RBAC, the broad `Mail.Read` and `Mail.Send` grants in Entra ID must also be removed (otherwise they override the scope). RBAC for Applications replaces the deprecated Application Access Policies.
 
-**Confidence:** HIGH (existing Azure OpenAI integration proven)
+**Confidence:** HIGH — verified against official Exchange Online RBAC for Applications documentation (updated 2026-02-27).
 
 ---
 
-## What NOT to Add (Anti-Requirements)
+## What NOT to Add
 
-### ❌ scikit-learn / spaCy / ML Libraries
+### Do Not Add: msgraph-sdk (1.55.0)
 
-**Why Avoid:**
-- **Overkill:** Message Center detection is a simple binary classification problem (is/isn't MC, is/isn't major)
-- **Training data:** No labeled dataset available, would require manual labeling
-- **Maintenance burden:** Model retraining, drift detection, version management
-- **Existing solution:** Azure OpenAI provides superior zero-shot classification without training
+**Why:** Async-only SDK with a known event loop closure bug for synchronous callers (GitHub issue #366). Adds 25.8 MB of generated code for two API calls. Requires `azure-identity` as a new dependency. No advantage over httpx + MSAL for this use case.
 
-**When to reconsider:** If Message Center email volume exceeds 1000/day AND LLM costs become prohibitive (not the case for typical shared mailbox)
+**When to reconsider:** If InboxIQ were rewritten as an async application, or if the scope of Graph API calls expanded substantially beyond email read/send.
 
-### ❌ Microsoft Graph API SDK
+### Do Not Add: azure-identity (1.25.2)
 
-**Why Avoid:**
-- **Redundant data source:** Message Center posts already arrive as emails in the shared mailbox
-- **New auth complexity:** Would require separate Graph API app registration and consent
-- **Dependency creep:** Adds `requests`/`httpx` for Graph API calls (already have for OpenAI, but different endpoint)
-- **Not in requirements:** PROJECT.md explicitly lists "Microsoft Graph API integration" as out of scope
+**Why:** Only needed as the credential provider for `msgraph-sdk`. With direct REST calls, MSAL handles token acquisition entirely. Adding `azure-identity` alongside `msal` duplicates authentication responsibility and adds confusion about which library owns tokens.
 
-**When to reconsider:** If organization disables Message Center email notifications (not typical)
+### Do Not Add: requests
 
-### ❌ beautifulsoup4 / lxml for HTML Parsing
+**Why:** httpx is already present and is the superior choice — it supports both sync and async, has a cleaner API, and is already used by the `openai` package in the dependency tree. Adding `requests` would be a redundant HTTP library.
 
-**Why Avoid:**
-- **Existing solution:** `EWSClient._strip_html()` already removes HTML tags for content analysis
-- **Unnecessary complexity:** Don't need structured HTML parsing, just text extraction
-- **Regex sufficient:** Deadline/action detection works on plain text
+### Do Not Add: aiohttp
 
-**When to reconsider:** If Message Center emails contain structured tables requiring cell-level extraction (not observed in documentation)
+**Why:** InboxIQ is a synchronous daemon script. Adding an async HTTP library has no benefit and adds complexity.
+
+### Do Not Add: msgraph-beta-sdk
+
+**Why:** All required endpoints (`/messages`, `/sendMail`) are stable v1.0 endpoints. Beta SDK should not be used in production tooling.
 
 ---
 
-## Extended Properties Investigation (exchangelib)
+## Sources
 
-### EWS Extended Properties for Message Center Detection
+### HIGH Confidence (Official Documentation)
 
-**Research Question:** Can Message Center emails be identified via EWS extended properties or X-headers?
+- [msgraph-sdk PyPI — version 1.55.0, released 2026-02-20](https://pypi.org/project/msgraph-sdk/) — Current version confirmed
+- [azure-identity PyPI — version 1.25.2, released 2026-02-11](https://pypi.org/project/azure-identity/) — Current version confirmed
+- [Choose a Microsoft Graph authentication provider — Microsoft Learn](https://learn.microsoft.com/en-us/graph/sdks/choose-authentication-providers) — Confirmed client credentials flow uses `ClientSecretCredential` from `azure-identity` with the SDK; also confirmed MSAL is the underlying implementation
+- [Send Outlook messages from another user — Microsoft Graph docs](https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user) — Confirmed `from` property behavior, SendAs vs application permission distinction, endpoint for app-only: `/users/{user-id}/sendMail`
+- [Role Based Access Control for Applications in Exchange Online — Microsoft Learn](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) — Confirmed RBAC for Applications replaces Application Access Policies; PowerShell commands for scoping; updated 2026-02-27
+- [Add email capabilities to Python apps — Microsoft Graph tutorials](https://learn.microsoft.com/en-us/graph/tutorials/python-email) — Confirmed SDK message reading and sending patterns
+- [Microsoft Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference) — Confirmed Mail.Read.Shared is delegated-only; Mail.Read application permission works for shared mailboxes via `/users/{mailbox}`
 
-**Findings:**
+### MEDIUM Confidence (Verified from Multiple Sources)
 
-**X-Headers (Internet Message Headers):**
-- **Availability:** Only present if email passed through external SMTP servers
-- **Message Center context:** M365 internal notifications may NOT have external headers
-- **Access method:** exchangelib extended properties with `InternetHeaders` property set
+- [Access Shared Mailbox via Graph API — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/1406369/access-shared-mailbox-via-graph-api) — Confirmed endpoint pattern `users/{sharedmailboxaddress}/messages` for application permissions
+- [Permissions to access shared mailbox to read and send — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/2149155/permissions-to-access-shared-mailbox-to-read-and-s) — Confirmed Mail.Read application permission with client credentials works for shared mailboxes
 
-```python
-from exchangelib.extended_properties import ExtendedProperty
+### LOW Confidence (Inform Decisions, Verify Before Implementing)
 
-# Define X-Header extended property
-class XHeader(ExtendedProperty):
-    property_set_id = '00020386-0000-0000-c000-000000000046'  # InternetHeaders
-    property_name = 'X-MS-Exchange-MessageCenter-ID'
-    property_type = 'String'
-```
-
-**Likelihood Assessment:**
-- **LOW confidence** that Message Center emails have custom X-headers
-- **Not documented** by Microsoft as a reliable identifier
-- **Worth testing** but not relying on for primary detection
-
-**Categories Property:**
-- **Supported by exchangelib:** `item.categories` field (list of strings)
-- **Filter example:** `inbox.filter(categories__contains=['MessageCenter'])`
-- **Likelihood:** LOW — categories are user-managed, not typically set by automated systems
-
-**Confidence:** LOW (extended properties not documented for Message Center detection)
-
-### Recommended Extended Properties Strategy
-
-**Implementation approach:**
-1. **Phase 1:** Rely on sender + subject + body regex patterns (HIGH confidence)
-2. **Phase 2:** Add LLM classification for ambiguous cases (HIGH confidence)
-3. **Phase 3 (Optional):** Test X-headers in production environment, add if reliable patterns discovered
-
-**Rationale:** Don't over-engineer for hypothetical identifiers. Start with proven detection methods, add extended properties if patterns emerge.
-
----
-
-## Stack Additions Summary
-
-### Required Additions: NONE
-
-All capabilities exist in current stack:
-- ✅ Email metadata filtering (exchangelib)
-- ✅ Regex pattern matching (Python stdlib `re`)
-- ✅ LLM classification (Azure OpenAI via existing `openai` package)
-
-### Recommended Code Additions (No New Dependencies)
-
-**New Classes/Modules:**
-
-```python
-# src/message_center.py
-class MessageCenterDetector:
-    """Detect and classify M365 Message Center emails."""
-
-    @staticmethod
-    def is_message_center_email(email: Email) -> bool:
-        """Primary detection via sender + subject + body patterns."""
-        pass
-
-    @staticmethod
-    def is_major_update(email: Email) -> bool:
-        """Detect major update tag via subject/body regex."""
-        pass
-
-    @staticmethod
-    def extract_deadline(email: Email) -> Optional[datetime]:
-        """Extract action deadline from body content."""
-        pass
-
-# src/llm_summarizer.py (extend existing class)
-class LLMSummarizer:
-    def classify_message_center_email(self, email: Email) -> dict:
-        """LLM-based classification fallback."""
-        pass
-```
-
-**Enhanced Email Dataclass:**
-
-```python
-# src/ews_client.py
-@dataclass
-class Email:
-    # Existing fields...
-
-    # New optional fields
-    is_message_center: bool = False
-    is_major_update: bool = False
-    action_deadline: Optional[datetime] = None
-    message_center_id: Optional[str] = None  # MC#######
-```
-
----
-
-## Configuration Additions
-
-### Environment Variables (.env)
-
-```bash
-# New config for major update digest
-MAJOR_UPDATE_TO=admin@example.com
-MAJOR_UPDATE_CC=
-MAJOR_UPDATE_BCC=
-
-# Detection tuning (optional)
-MESSAGE_CENTER_SENDER_FILTER=email2.microsoft.com
-MESSAGE_CENTER_LLM_FALLBACK=true  # Use LLM when regex uncertain
-```
-
-### No New Service Dependencies
-
-- ❌ No new Azure services
-- ❌ No new API endpoints
-- ❌ No new authentication flows
-- ✅ Reuses existing EWS and Azure OpenAI connections
-
----
-
-## Integration Points with Existing Stack
-
-### 1. EWS Client Integration
-
-**File:** `src/ews_client.py`
-
-```python
-# Extend get_shared_mailbox_emails() with optional classification
-def get_shared_mailbox_emails(
-    self,
-    shared_mailbox: str,
-    since: datetime | None = None,
-    max_emails: int = 100,
-    classify_message_center: bool = False  # NEW parameter
-) -> list[Email]:
-    emails = [...]  # Existing fetching logic
-
-    if classify_message_center:
-        detector = MessageCenterDetector()
-        for email in emails:
-            email.is_message_center = detector.is_message_center_email(email)
-            if email.is_message_center:
-                email.is_major_update = detector.is_major_update(email)
-                email.action_deadline = detector.extract_deadline(email)
-
-    return emails
-```
-
-### 2. Summarizer Integration
-
-**File:** `src/summarizer.py`
-
-**Changes required:**
-- Split emails into two lists: regular and major updates
-- Generate two separate `DailySummary` objects
-- Different prompts for LLM summarization (action/deadline focus for major updates)
-
-```python
-def categorize_emails(self, emails: list[Email]) -> tuple[list[Email], list[Email]]:
-    """Separate Message Center major updates from regular emails."""
-    regular_emails = []
-    major_updates = []
-
-    for email in emails:
-        if email.is_message_center and email.is_major_update:
-            major_updates.append(email)
-        else:
-            regular_emails.append(email)
-
-    return regular_emails, major_updates
-```
-
-### 3. LLM Prompts (Azure OpenAI)
-
-**File:** `src/llm_summarizer.py`
-
-**New prompt template for major updates:**
-
-```python
-MAJOR_UPDATE_DIGEST_PROMPT = """
-Analyze these Microsoft 365 Message Center major update notifications.
-Focus on:
-1. Deadlines for required actions (extract dates)
-2. Services/features affected
-3. Impact to users or admins
-4. Recommended actions
-
-Generate a concise admin-focused summary highlighting urgency and next steps.
-"""
-```
-
----
-
-## Verification & Testing Strategy
-
-### Detection Accuracy Validation
-
-**Approach:** Implement logging to track detection confidence
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-def is_message_center_email(email: Email) -> bool:
-    score = 0
-    reasons = []
-
-    # Sender check
-    if '@email2.microsoft.com' in email.sender_email.lower():
-        score += 3
-        reasons.append('sender_match')
-
-    # Subject MC ID check
-    if re.search(r'\bMC\d{7}\b', email.subject):
-        score += 2
-        reasons.append('mc_id_match')
-
-    # Major update keywords
-    if re.search(r'(?i)major update', email.subject):
-        score += 1
-        reasons.append('major_update_subject')
-
-    is_mc = score >= 3
-    logger.info(f"MC detection: {is_mc} (score={score}, reasons={reasons})")
-    return is_mc
-```
-
-**Metrics to track:**
-- Detection rate (% of emails classified as MC)
-- False positive rate (manual review of first 50 classified emails)
-- LLM fallback usage rate (% requiring LLM vs. regex)
-
-### Recommended Testing Process
-
-1. **Week 1:** Enable detection with dry-run logging only
-2. **Week 2:** Manual review of 50+ classified emails for accuracy
-3. **Week 3:** Enable major update digest to test recipients
-4. **Week 4:** Production rollout with monitoring
-
----
-
-## Performance Considerations
-
-### Regex Performance
-
-**Impact:** Negligible for typical email volumes
-
-```python
-# Regex compilation for performance
-import re
-
-class MessageCenterDetector:
-    # Compile patterns once at class level
-    MC_ID_PATTERN = re.compile(r'\bMC\d{7}\b')
-    MAJOR_UPDATE_PATTERN = re.compile(r'(?i)major update|major change')
-    DEADLINE_PATTERN = re.compile(
-        r'(?i)(act by|deadline|action required by).*?(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})'
-    )
-```
-
-**Benchmark estimate:**
-- Regex execution: <1ms per email
-- LLM classification (if needed): ~500-1000ms per email
-- Total overhead: <5% of existing summarization time
-
-### LLM Classification Costs
-
-**Azure OpenAI usage increase:**
-- **Current:** ~1 LLM call per email (summarization) + 1 call for digest
-- **With MC detection:** +1 call per ambiguous email (estimate 10-20% of emails)
-- **Cost impact:** ~10-20% increase in Azure OpenAI token usage
-
-**Mitigation:** Only use LLM when regex confidence is low (score between 2-3)
-
----
-
-## Sources & References
-
-### High Confidence Sources
-
-**Microsoft Official Documentation:**
-- [Message center in the Microsoft 365 admin center - Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/message-center?view=o365-worldwide) — Confirmed tag structure (Major Update, Admin Impact, etc.), 30-day advance notice requirement, email notification preferences
-- [Is o365mc@microsoft.com a legitimate email address? - Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/4694017/is-o365mc@microsoft-com-a-legitimate-email-address) — Confirmed `@email2.microsoft.com` as legitimate sender, `o365mc@microsoft.com` as phishing
-
-**Message Center Email Subject Updates:**
-- [Updated subject lines for email communications from Message center - M365 Admin](https://m365admin.handsontek.net/updated-subject-lines-for-email-communications-from-message-center/) — Confirmed subject line change: "Message Center Major Change Update Notification" → "Major update from Message center"
-- [Message Center Email Notification Changes - M365 Admin](https://m365admin.handsontek.net/message-center-email-notification-changes/) — Email notification configuration and subject format changes
-
-### Medium Confidence Sources
-
-**exchangelib Capabilities:**
-- [exchangelib API documentation](https://ecederstrand.github.io/exchangelib/exchangelib/) — Categories filtering, extended properties
-- [exchangelib Extended Properties documentation](https://ecederstrand.github.io/exchangelib/exchangelib/extended_properties.html) — InternetHeaders property set, custom property definitions
-- [Filter complains about categories not being string property · Issue #575](https://github.com/ecederstrand/exchangelib/issues/575) — Categories filtering limitations
-
-**Message Center Context:**
-- [Change Microsoft 365 Message Center Email Settings - Daniel Glenn](https://danielglenn.com/change-microsoft-365-message-center-email-settings/) — Preferences configuration, digest vs. major update emails
-- [Top 10 Microsoft 365 Message Center & Roadmap Items in February 2026](https://changepilot.cloud/blog/top-10-microsoft-365-message-center-roadmap-items-in-february-2026) — Real-world Message Center post examples with MC IDs
-
-### Low Confidence (Considered but Not Relied Upon)
-
-**Email Classification Libraries:**
-- [Email Spam Filtering with Python and Scikit-learn - KDnuggets](https://www.kdnuggets.com/2017/03/email-spam-filtering-an-implementation-with-python-and-scikit-learn.html) — Pattern not applicable (no training data available)
-- [Build Email Spam Classification Model with SpaCy - Analytics Vidhya](https://medium.com/analytics-vidhya/build-email-spam-classification-model-using-python-and-spacy-a0c914a83f4d) — Pattern not applicable (Azure OpenAI is superior)
-
----
-
-## Open Questions & Risks
-
-### Sender Address Variability
-
-**Risk:** Custom domain configurations may cause sender filtering to miss Message Center emails
-
-**Mitigation:**
-- Implement fallback detection on subject/body patterns even if sender doesn't match
-- Add configuration option for custom sender domain patterns
-- Monitor false negative rate in production
-
-### Subject Line Format Evolution
-
-**Risk:** Microsoft may change subject line format without notice
-
-**Mitigation:**
-- Use multiple detection signals (sender + subject + body) rather than single identifier
-- LLM classification provides resilience to format changes
-- Implement detection confidence logging for early warning
-
-### Email Body Structure Assumptions
-
-**Risk:** Message Center email HTML structure not officially documented
-
-**Confidence:** MEDIUM — Tag patterns verified in documentation, but exact email body format inferred
-
-**Mitigation:**
-- Test with real Message Center emails in production environment
-- Adjust regex patterns based on observed structure
-- LLM fallback provides robustness to structure variations
-
----
-
-## Recommendation Summary
-
-**Stack additions required:** **ZERO**
-
-**Implementation approach:**
-1. ✅ **Phase 1 (Week 1):** Regex-based detection (sender + subject + body patterns)
-2. ✅ **Phase 2 (Week 2):** LLM classification fallback for ambiguous cases
-3. ⚠️ **Phase 3 (Optional):** Extended properties investigation if patterns unreliable
-
-**Confidence in stack adequacy:** **HIGH**
-
-The existing Python 3.10+ stdlib, exchangelib, and Azure OpenAI integration provide all necessary capabilities for Message Center major update detection and admin digest generation. No new external dependencies required.
+- [asyncio.run() event loop issue — GitHub issue #366](https://github.com/microsoftgraph/msgraph-sdk-python/issues/366) — Community-reported issue; status as of research is unresolved for daemon script pattern. Verify before choosing SDK route.
+- [Why use Microsoft Graph SDK — Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-cloud/dev/dev-proxy/concepts/why-use-microsoft-graph-sdk) — SDK benefits list; applicable to larger scope use cases than InboxIQ

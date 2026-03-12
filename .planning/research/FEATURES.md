@@ -1,181 +1,383 @@
-# Feature Landscape: M365 Message Center Major Updates Digest
+# Features Research: Graph API Migration
 
-**Domain:** Admin-focused service update notifications
-**Researched:** 2026-02-23
+**Domain:** Microsoft Graph API vs EWS — Email Read/Send Operations
+**Project:** InboxIQ — EWS to Graph API swap (no new features)
+**Researched:** 2026-03-12
+**Overall Confidence:** HIGH (all findings sourced from official Microsoft documentation)
 
-## Table Stakes
+---
 
-Features users expect. Missing = product feels incomplete.
+## EWS to Graph Operation Mapping
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Message ID Display** | MC# is how admins reference updates in conversations and tickets | Low | MC949965 format — extract from subject/body |
-| **Action Required Date** | Primary driver for admin planning — when must action be taken | Medium | Must be prominently displayed, visually distinct |
-| **Affected Services** | Admins filter by what they manage (Exchange, Teams, SharePoint, etc.) | Low | Service name extraction from Message Center fields |
-| **Update Category Tags** | Core to triage: MAJOR UPDATE, ADMIN IMPACT, USER IMPACT, RETIREMENT, BREAKING CHANGE | Medium | Multi-tag support, visual indicators for each |
-| **Published/Updated Dates** | Admins track when info was posted and if it's been revised | Low | Two distinct dates — published (original) vs last updated |
-| **HTML Email Formatting** | Consistent with existing digest, professional admin communication | Low | Reuse existing HTML infrastructure |
-| **Urgency Visual Indicators** | Color-coding, icons, or formatting to highlight critical/urgent items | Medium | Critical > High > Normal urgency levels with visual distinction |
-| **Separate Recipients** | Different audience than regular digest (admins not general team) | Low | MAJOR_UPDATE_TO/CC/BCC env vars, same pattern as existing SUMMARY_* |
-| **Email Detection** | Identify Message Center emails in shared mailbox reliably | High | Sender pattern, subject structure, body markers — needs robust detection |
-| **Exclusion from Regular Digest** | Prevent duplicate coverage — major updates shouldn't appear in both | Medium | Filter logic after detection, maintain separate processing pipelines |
+This table maps every current EWS operation in InboxIQ (`ews_client.py`) to its exact Graph API equivalent.
 
-## Differentiators
+| EWS Operation | EWS Method (exchangelib) | Graph API Equivalent | HTTP Method | Graph URL Pattern |
+|---|---|---|---|---|
+| Read inbox emails | `inbox.filter(datetime_received__gte=since)` | List messages | GET | `/users/{mailbox}/mailFolders/inbox/messages?$filter=receivedDateTime ge {datetime}` |
+| Order by newest first | `.order_by('-datetime_received')` | OData orderby | GET param | `&$orderby=receivedDateTime DESC` |
+| Limit results | `[:max_emails]` (slice) | OData top | GET param | `&$top=100` |
+| Get email body (HTML) | `item.body` | body property | `$select=body` | `body.content` string, `body.contentType` = "html" |
+| Get sender | `item.sender.name`, `item.sender.email_address` | sender property | `$select=sender` | `sender.emailAddress.name`, `sender.emailAddress.address` |
+| Get received time | `item.datetime_received` | receivedDateTime | `$select=receivedDateTime` | ISO 8601 UTC string e.g. `2026-03-12T10:00:00Z` |
+| Get subject | `item.subject` | subject property | `$select=subject` | String field |
+| Check attachments | `item.has_attachments` | hasAttachments | `$select=hasAttachments` | Boolean field |
+| Get message ID | `item.id` | id property | (returned by default) | Opaque string (different format than EWS IDs) |
+| Send email | `message.send_and_save()` | sendMail | POST | `/users/{sender}/sendMail` |
+| Send with HTML body | `body=HTMLBody(html)` in Message | body.contentType=HTML | POST body | `"body": {"contentType": "HTML", "content": "..."}` |
+| Send with TO recipients | `to_recipients=[Mailbox(...)]` | toRecipients | POST body | `[{"emailAddress": {"address": "..."}}]` |
+| Send with CC recipients | `cc_recipients=[Mailbox(...)]` | ccRecipients | POST body | `[{"emailAddress": {"address": "..."}}]` |
+| Send with BCC recipients | `bcc_recipients=[Mailbox(...)]` | bccRecipients | POST body | `[{"emailAddress": {"address": "..."}}]` |
+| SendAs (custom From) | `author=Mailbox(email_address=send_from)` | from property | POST body | `"from": {"emailAddress": {"address": "send_from@..."}}` |
+| App-only auth | MSAL client credentials + EWS SOAP | MSAL client credentials + REST bearer | HTTP header | `Authorization: Bearer {token}` |
+| Auth scope | `https://outlook.office365.com/.default` | `https://graph.microsoft.com/.default` | MSAL scopes | Single string change |
+| Impersonation / mailbox targeting | `access_type=IMPERSONATION` on Account | No impersonation — address user directly | URL path | `/users/{mailbox_email}/...` |
 
-Features that set product apart. Not expected, but valued.
+**Official source:** [EWS to Graph API Mappings](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-api-mapping) — HIGH confidence
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Deadline Countdown** | "Action required in 7 days" vs static date — immediate sense of urgency | Medium | Calculate days remaining, visual urgency escalation as deadline approaches |
-| **Impact Level Summary** | At-a-glance view: "3 Admin Impact, 1 Retirement, 2 User Impact" in digest header | Low | Aggregate tags across all updates in current digest |
-| **Relevance Score Display** | Message Center includes relevance ratings — surface this for prioritization | Low | If available in email format, display prominently |
-| **AI-Powered Admin Action Summary** | LLM extracts specific admin actions needed: "Update auth settings", "Migrate workflows", "Notify users" | High | Specialized prompt tuning for admin-facing service announcements |
-| **Service-Grouped Organization** | Group updates by affected service (all Exchange updates together) instead of chronological | Medium | Helps admins delegate to service-specific teams |
-| **Retirement Timeline** | Dedicated section for retirement notices with visual timeline | Medium | Critical for planning — retirements have hard deadlines |
-| **Previous Update Reference** | "Updated from MC949965 (2026-01-15)" — link revisions to originals | High | Requires tracking Message IDs across digest runs, state management |
-| **No Action Needed Digest** | "No new major updates since last run" email when nothing to report | Low | Confirms system is working, nothing missed — peace of mind |
-| **Link to Full Message Center Post** | Direct link to official post for full details | Low | Construct URL from Message ID: https://admin.microsoft.com/Adminportal/Home#/MessageCenter/:/messages/{MC_ID} |
+---
 
-## Anti-Features
+## Table Stakes (Must Preserve)
 
-Features to explicitly NOT build. Common mistakes in this domain.
+Features that must work identically after migration. Missing or broken = migration failed.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Microsoft Graph API Integration** | Adds complexity, auth scope, and redundancy — updates already arrive as emails | Email-based detection from existing mailbox |
-| **Real-time Push Notifications** | Breaks hourly batch model, increases complexity, not aligned with digest workflow | Hourly digest is sufficient for planning-focused admin work |
-| **Manual Task Creation** | Automated Planner task creation is fragile, org-specific workflow, not universal | Provide clear digest email — admins create tasks in their own systems |
-| **Full Message Body in Digest** | Message Center posts are lengthy — digest becomes overwhelming, defeats purpose | AI summary + link to full post for details |
-| **Historical Archive Search** | Scope creep — Message Center portal already provides this | Focus on current/upcoming actions only |
-| **Per-Admin Filtering** | Complex personalization, requires user profiles, not suited to shared digest model | Send to admin distribution list, let individuals filter inbox |
-| **Response/Acknowledgment Tracking** | Becomes a ticketing system — out of scope for a digest tool | Digest informs, external systems track completion |
-| **Service Health Incidents** | Different category (reactive incidents vs proactive updates), different urgency model | Focus only on Message Center major updates, not service health |
-| **Multi-tenant Support** | Existing tool is single-tenant, major architectural change for unclear benefit | Single tenant deployment meets current need |
+| Feature | Current EWS Behavior | Graph API Equivalent | Confidence |
+|---|---|---|---|
+| Read shared mailbox inbox | `IMPERSONATION` access to `Config.SHARED_MAILBOX` | `GET /users/{SHARED_MAILBOX}/mailFolders/inbox/messages` | HIGH |
+| Filter by received date | `datetime_received__gte=since` with `EWSTimeZone` | `$filter=receivedDateTime ge 2026-03-12T10:00:00Z` (must be UTC) | HIGH |
+| Order newest first | `.order_by('-datetime_received')` | `$orderby=receivedDateTime DESC` | HIGH |
+| Retrieve HTML body | `str(item.body)` returns HTML string | `body.content` returns HTML string by default | HIGH |
+| Sender name and email | `item.sender.name`, `item.sender.email_address` | `sender.emailAddress.name`, `sender.emailAddress.address` | HIGH |
+| Received datetime as UTC | Manual conversion using `timezone.utc` | `receivedDateTime` is already ISO 8601 UTC | HIGH |
+| has_attachments flag | `item.has_attachments` boolean | `hasAttachments` boolean property | HIGH |
+| Send HTML email | `body=HTMLBody(html)` | `"body": {"contentType": "HTML", "content": "..."}` | HIGH |
+| TO/CC/BCC recipients | `Mailbox(email_address=...)` lists | `[{"emailAddress": {"address": "..."}}]` arrays | HIGH |
+| SendAs (custom From) | `author=Mailbox(email_address=send_from)` | `"from": {"emailAddress": {"address": send_from}}` in message | HIGH |
+| Send saved to Sent Items | `message.send_and_save()` always saves | `sendMail` defaults to `saveToSentItems: true` | HIGH |
+| App-only client credentials | MSAL `acquire_token_for_client()` | Same MSAL call, different scope URL | HIGH |
+| Max emails limit | `[:max_emails]` exchangelib slice | `$top=100` query parameter (max 1000 per page) | HIGH |
+| Error isolation between digests | Independent try/except around each digest | Same pattern, exception type changes from `EWSClientError` to `requests.HTTPError` | HIGH |
 
-## Feature Dependencies
+**Official sources:**
+- [List messages API](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0)
+- [sendMail API](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0)
+- [Message resource type](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0)
+
+---
+
+## Behavioral Differences
+
+Critical differences that require code changes during migration.
+
+### 1. Pagination — Graph Requires Explicit Handling
+
+**EWS behavior:** exchangelib transparently applies `[:max_emails]` as a server-side slice. You get back a list you iterate once.
+
+**Graph behavior:** Graph returns results in pages. Default page size is 10 messages. Maximum page size with `$top` is 1000. When more results exist, the response contains `@odata.nextLink` — a URL you must GET to retrieve the next page. If you ignore `@odata.nextLink`, you silently miss emails beyond the first page.
+
+**Impact on InboxIQ:** A single request with `$top=100` handles the normal case (hourly run, low email volume). However, correctness requires a pagination loop. The code must check for `@odata.nextLink` in the response and follow it until exhausted.
+
+Pagination loop pattern in plain `requests`:
+```python
+url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages"
+params = {"$filter": f"receivedDateTime ge {since_utc}", "$orderby": "receivedDateTime DESC", "$top": 100, "$select": "..."}
+while url:
+    response = session.get(url, params=params)
+    data = response.json()
+    emails.extend(data["value"])
+    url = data.get("@odata.nextLink")
+    params = {}  # nextLink already contains all params
+```
+
+**Official source:** [List messages — paging](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+### 2. Date Filtering — UTC Required, Format Strict
+
+**EWS behavior:** exchangelib accepts `EWSTimeZone.localzone()` datetimes and converts internally.
+
+**Graph behavior:** `receivedDateTime` filter values must be ISO 8601 UTC. The `Z` suffix or `+00:00` offset is required. Local timezone is not accepted and will produce incorrect results or errors.
+
+**Filter + orderby constraint:** When using both `$filter` and `$orderby` on the same property, Graph requires `$orderby` properties also appear in `$filter`, in the same order, and before non-orderby properties in `$filter`. The correct form is:
 
 ```
-Email Detection (HIGH)
-  ├─→ Exclusion from Regular Digest (MEDIUM)
-  └─→ Separate Recipients (LOW)
-
-Message ID Display (LOW)
-  ├─→ Link to Full Post (LOW)
-  └─→ Previous Update Reference (HIGH) — optional differentiator
-
-Action Required Date (MEDIUM)
-  └─→ Deadline Countdown (MEDIUM) — optional differentiator
-
-Update Category Tags (MEDIUM)
-  └─→ Impact Level Summary (LOW) — optional differentiator
-  └─→ Retirement Timeline (MEDIUM) — optional differentiator
-
-HTML Email Formatting (LOW)
-  ├─→ Urgency Visual Indicators (MEDIUM)
-  └─→ Service-Grouped Organization (MEDIUM) — optional differentiator
+?$filter=receivedDateTime ge 2026-03-12T00:00:00Z&$orderby=receivedDateTime DESC
 ```
 
-## MVP Recommendation
+Incorrect forms (will return `InefficientFilter` error):
+```
+?$filter=... &$orderby=receivedDateTime    # missing filter on receivedDateTime
+?$orderby=receivedDateTime&$filter=...    # wrong parameter order
+```
 
-For MVP, prioritize table stakes features that ensure a functional admin digest:
+**Impact on InboxIQ:**
+- The `StateManager` already stores datetimes as UTC via `datetime.now(timezone.utc)`. Incremental mode timestamps are already correct — convert with `.isoformat().replace('+00:00', 'Z')`.
+- The "today at midnight" fallback uses `EWSTimeZone.localzone()` — must change to `datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)`.
 
-### Must Have (MVP)
-1. **Email Detection** — Reliably identify Message Center major updates in mailbox
-2. **Exclusion from Regular Digest** — Prevent duplicates across digests
-3. **Separate Recipients** — MAJOR_UPDATE_TO/CC/BCC configuration
-4. **Message ID Display** — MC# for reference
-5. **Action Required Date** — When action must be taken
-6. **Affected Services** — Which service(s) impacted
-7. **Update Category Tags** — MAJOR UPDATE, ADMIN IMPACT, etc.
-8. **Published/Updated Dates** — Track original and revision dates
-9. **HTML Email Formatting** — Professional, consistent with existing digest
-10. **Urgency Visual Indicators** — Color-coded or icon-based urgency levels
+**Official source:** [List messages — filter and orderby constraint](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0) — HIGH confidence
 
-### Should Have (Post-MVP)
-- **Deadline Countdown** — "Action required in X days" for immediate context
-- **Impact Level Summary** — Aggregate tag counts in digest header
-- **Link to Full Message Center Post** — Direct access to official post
-- **AI-Powered Admin Action Summary** — Specialized LLM summarization for admin actions
+---
 
-### Nice to Have (Future)
-- **Service-Grouped Organization** — Group by affected service
-- **Retirement Timeline** — Dedicated retirement section with visual timeline
-- **No Action Needed Digest** — Confirmation email when no updates
-- **Previous Update Reference** — Track Message ID revisions across runs
+### 3. Shared Mailbox Access — Direct URL, No Impersonation
 
-## Deferred to Post-MVP
+**EWS behavior:** `access_type=IMPERSONATION` on the `Account` object. exchangelib sets SOAP impersonation headers. Separate accounts opened for shared mailbox (reading) and sender account (sending).
 
-**Relevance Score Display**: Depends on whether relevance appears in email format — investigate during implementation
+**Graph behavior:** No impersonation concept in Graph. Access any mailbox directly by addressing the `/users/{email}` endpoint. With `Mail.Read` application permission, the app can access any mailbox in the tenant by email address or user ID.
 
-**Previous Update Reference**: Requires state management for Message IDs — significant complexity, defer until MVP validated
+URL pattern for shared mailbox inbox:
+```
+GET https://graph.microsoft.com/v1.0/users/messagingai@marsh.com/mailFolders/inbox/messages
+```
 
-## Implementation Notes
+URL pattern for sending from a user's mailbox:
+```
+POST https://graph.microsoft.com/v1.0/users/kevin.j.taylor@mmc.com/sendMail
+```
 
-### Detection Strategy (Critical Path)
-Research indicates Message Center emails likely have:
-- Sender pattern: `Microsoft 365 Message center <xxxxxxxx@xxxxxxxx.xxxxxxxxx.com>` or similar
-- Subject pattern: May include Message ID (MC#) and tags
-- Body markers: HTML structure with specific tags (MAJOR UPDATE, ADMIN IMPACT, etc.)
+**Impact on InboxIQ:** The `_get_account()` method and dual `_shared_account` / `_sender_account` pattern has no equivalent. Replace the entire `EWSClient` class with a `GraphClient` class that holds an authenticated `requests.Session` and calls the appropriate URLs directly.
 
-**Recommendation**: Multi-factor detection (sender + subject pattern + body content) for reliability
+**Official source:** [Shared/delegated folder access](https://learn.microsoft.com/en-us/graph/outlook-share-messages-folders) — HIGH confidence
 
-### Tag Extraction
-Message Center uses specific tags consistently:
-- **MAJOR UPDATE**: Significant changes requiring 30+ days advance notice
-- **ADMIN IMPACT**: Change affects admin UI, workflow, controls, or requires admin action
-- **USER IMPACT**: Change affects end-user daily productivity
-- **RETIREMENT**: Feature/service ending, requires migration
-- **DATA PRIVACY**: Privacy-related changes (separate digest in official Message Center)
+---
 
-**Recommendation**: Extract all tags, prioritize MAJOR UPDATE + ADMIN IMPACT for digest relevance
+### 4. SendAs — From Property in JSON Body
 
-### Action Date Parsing
-Action required dates appear in Message Center posts, but format varies:
-- "Action required by: March 31, 2026"
-- "You must complete migration before May 1, 2026"
-- "Deadline: 2026-04-02"
+**EWS behavior:** `author=Mailbox(email_address=send_from)` on the `Message` object sets the From address. The current code sends from `Config.USER_EMAIL` but sets author to `Config.get_send_from()` (which may differ if `SEND_FROM` env var is set).
 
-**Recommendation**: Use LLM to extract deadline dates reliably, fallback to date pattern matching
+**Graph behavior:** Set the `from` property in the message JSON body:
+```json
+{
+  "message": {
+    "subject": "...",
+    "from": {
+      "emailAddress": { "address": "shared-address@domain.com" }
+    },
+    "toRecipients": [...],
+    "body": {...}
+  }
+}
+```
 
-### Urgency Levels
-Based on UX research, notification urgency typically has 3 levels:
-- **Critical**: Red, requires immediate action (< 7 days to deadline)
-- **Warning**: Yellow/Orange, important and needs attention (7-30 days)
-- **Information**: Green/Blue, general updates (> 30 days or no deadline)
+The `sender` property is set automatically by Graph based on the mailbox used in the URL. The `from` property controls what recipients see as the From address.
 
-**Recommendation**: Map deadline proximity to urgency level, apply color-coding in HTML
+**SendAs vs Send on Behalf distinction:**
+- **Send As** (Exchange permission): `from` and `sender` display the same address. No "on behalf of" indicator shown to recipients. Requires Exchange admin to grant SendAs permission on the from mailbox.
+- **Send on Behalf** (Exchange permission): `from` shows the from address, `sender` shows the actual sending account. Recipients see "User A on behalf of User B."
+
+For app-only (client credentials flow), the documentation states: "Applications that use application tokens instead of user tokens and have the `Mail.Send` permission consented by an administrator can send mail as any user in the organization." Setting `from` in this context performs a SendAs-style send.
+
+**Impact on InboxIQ:** Remove the dual-account model. POST to `/users/{Config.USER_EMAIL}/sendMail` with `from` set to `Config.get_send_from()` in the message body. If `SEND_FROM` equals `USER_EMAIL`, omit the `from` property — Graph uses the sending mailbox by default.
+
+**Official source:** [Send mail from another user](https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user) — HIGH confidence
+
+---
+
+### 5. Body Content — HTML Returned, Graph Sanitizes by Default
+
+**EWS behavior:** `item.body` returns the raw body content. The `_strip_html()` method removes tags with regex.
+
+**Graph behavior:** `body.content` returns the HTML string. `body.contentType` is `"html"` for HTML emails, `"text"` for text-only emails.
+
+Important Graph-specific behavior: Graph **sanitizes HTML by default**, stripping potentially unsafe elements such as JavaScript before returning the body. To receive the original, unsanitized HTML, include the request header `Prefer: outlook.allow-unsafe-html`.
+
+For the LLM summarization use case, the sanitized HTML is preferable — it removes noise. The existing `_strip_html()` regex approach works on the `body.content` string with no changes needed.
+
+Text-format alternative: Include `Prefer: outlook.body-content-type="text"` to request server-side HTML-to-text conversion. This reduces the need for client-side HTML stripping, but Graph may still return HTML if the message has no text part.
+
+**Impact on InboxIQ:** No change required to HTML stripping logic. The body property access changes from `str(item.body)` to `message["body"]["content"]`. The sanitization behavior is an improvement.
+
+**Official source:** [Reading messages — body format control](https://learn.microsoft.com/en-us/graph/outlook-create-send-messages#reading-messages-with-control-over-the-body-format-returned) — HIGH confidence
+
+---
+
+### 6. Authentication Scope — One String Change
+
+**EWS behavior:** MSAL scope = `["https://outlook.office365.com/.default"]`
+
+**Graph behavior:** MSAL scope = `["https://graph.microsoft.com/.default"]`
+
+The MSAL `ConfidentialClientApplication` constructor arguments (`client_id`, `client_credential`, `authority`) are identical. The `acquire_token_for_client(scopes=...)` call is identical. Only the scopes list value changes.
+
+**Impact on InboxIQ:** One line change in `auth.py`. The `get_ews_credentials()` method becomes a `get_graph_token()` method that returns a raw access token string (not an `OAuth2Credentials` object, since exchangelib is gone).
+
+**Official source:** [Authentication differences EWS vs Graph](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-authentication) — HIGH confidence
+
+---
+
+### 7. Message ID Format — Different but Unused
+
+**EWS behavior:** EWS item IDs are long opaque base64 strings. They change when items are moved between folders.
+
+**Graph behavior:** Graph IDs are also opaque base64 strings with a different encoding. By default they also change on folder move. An immutable ID variant exists via `Prefer: IdType="ImmutableId"` but requires opt-in.
+
+**Impact on InboxIQ:** The `Email.id` field stores the ID in the `Email` dataclass. InboxIQ does not use IDs for deduplication, re-lookup, or state management — it uses time-based state only. The ID format change has zero functional impact.
+
+**Official source:** [Message resource — id property](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+### 8. sendMail Returns 202 Accepted (Not Delivery Confirmation)
+
+**EWS behavior:** `message.send_and_save()` raises an exception on failure.
+
+**Graph behavior:** `POST /sendMail` returns `202 Accepted` on success. This means the request was accepted, not that the message was delivered. Delivery is subject to Exchange Online throttling limits.
+
+**Impact on InboxIQ:** Error handling remains the same pattern — raise on non-2xx HTTP status. A 202 is a success for the API call. The semantic difference (accepted vs delivered) matches how Exchange Online has always worked.
+
+**Official source:** [sendMail API — response](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+### 9. bodyPreview — Native Field Removes Manual Truncation
+
+**EWS behavior:** The current code creates `body_preview = body_content[:200]` after stripping HTML from the full body. This requires fetching the full body just to get a preview.
+
+**Graph behavior:** The `bodyPreview` property is a native 255-character plain text preview generated by Exchange. It is returned by default in list responses (no `$select` needed) and does not require HTML stripping. The current `Email.body_preview` field can be populated directly from this field.
+
+**Impact on InboxIQ:** This is an improvement. Use `message["bodyPreview"]` for the preview. Still fetch `body` separately for full content for LLM summarization.
+
+**Official source:** [Message resource — bodyPreview](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+### 10. internetMessageHeaders — Opt-In Only
+
+**EWS behavior:** Headers are accessible on the exchangelib item object.
+
+**Graph behavior:** `internetMessageHeaders` is a message property but is **only returned when explicitly included in `$select`**. It is read-only after send (cannot modify after creation).
+
+**Impact on InboxIQ:** The current code does not read message headers. No impact. Note for future: if email header inspection is ever needed (e.g., for classifier enhancements), add `internetMessageHeaders` to the `$select` parameter.
+
+**Official source:** [Message resource — internetMessageHeaders](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+## Graph-Specific Considerations
+
+### Required Application Permissions (Entra ID)
+
+The existing Entra ID app registration is reused. Only the API permissions assigned to it change.
+
+| Permission | Type | Purpose | Replaces |
+|---|---|---|---|
+| `Mail.Read` | Application | Read messages from shared mailbox | `EWS.AccessAsApp` (read) |
+| `Mail.Send` | Application | Send emails from user account | `EWS.AccessAsApp` (send) |
+
+Remove `EWS.AccessAsApp` after migration is verified. The AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET environment variables remain unchanged.
+
+**Official source:** [Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference) — HIGH confidence
+
+---
+
+### Mail.Read Grants Tenant-Wide Access by Default
+
+With `Mail.Read` application permission, the app can read any mailbox in the tenant. This is broader than EWS impersonation which was scoped via Exchange configuration. The current EWS `EWS.AccessAsApp` permission also grants broad access, so the security posture is equivalent.
+
+Optional hardening (not required for migration): Use **Exchange Online RBAC for Applications** (`New-ManagementRoleAssignment`) to scope the app to specific mailboxes only. This replaces the older Application Access Policies. To scope correctly, remove the Entra ID `Mail.Read` grant and assign it instead via Exchange RBAC with a management scope targeting only the shared mailbox.
+
+**Official source:** [Exchange RBAC for Applications](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) — HIGH confidence
+
+---
+
+### $select for Performance and Reliability
+
+Graph returns a default set of fields, not all fields. Specifying `$select` reduces payload size and avoids HTTP 504 gateway timeouts on large mailboxes (explicitly warned about in official docs).
+
+Recommended `$select` for InboxIQ message reads:
+```
+$select=id,subject,sender,receivedDateTime,body,bodyPreview,hasAttachments
+```
+
+Note: `body` is NOT in the default response — it must be in `$select`. All other fields above are in the default response but specifying them explicitly speeds up requests.
+
+**Official source:** [List messages — performance](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0) — HIGH confidence
+
+---
+
+### Python Client Library Decision
+
+Two implementation approaches:
+
+**Option A: `msgraph-sdk` (Microsoft official Python SDK)**
+- Install: `pip install msgraph-sdk azure-identity`
+- Requires Python >= 3.9 (InboxIQ uses 3.10+, compatible)
+- Async-first API — requires `asyncio` / `await` throughout
+- Strongly typed objects
+- Automatic token refresh via `azure-identity`
+- Adds significant dependency weight
+
+**Option B: Direct `requests` + existing `msal`**
+- Uses `msal` already in `requirements.txt` — no new dependencies
+- Synchronous — fits current `main.py` architecture
+- Manual JSON parsing: `response.json()["value"]`
+- Manual pagination: `response.json().get("@odata.nextLink")`
+- Simpler debugging — raw HTTP, readable payloads
+
+**Recommendation: Option B (direct `requests`).** The existing codebase is synchronous. Adding `msgraph-sdk` would force a refactor of `main.py` to async, which is out of scope for a pure swap. The Graph REST API is simple JSON — no SDK abstraction is needed. `msal` already handles token acquisition.
+
+**Official source:** [msgraph-sdk PyPI](https://pypi.org/project/msgraph-sdk/) — HIGH confidence
+
+---
+
+### EWS Retirement Deadline
+
+Microsoft will retire EWS connections from Exchange Online on **October 1, 2026**. After that date, `exchangelib` will stop working against Exchange Online. This migration has a hard deadline.
+
+**Official source:** [EWS to Graph migration overview](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-overview) — HIGH confidence
+
+---
+
+### Quick Reference: Complete Filter Syntax
+
+The exact Graph query for InboxIQ's shared mailbox email fetch:
+
+```
+GET https://graph.microsoft.com/v1.0/users/messagingai@marsh.com/mailFolders/inbox/messages
+  ?$filter=receivedDateTime ge 2026-03-12T10:00:00Z
+  &$orderby=receivedDateTime DESC
+  &$top=100
+  &$select=id,subject,sender,receivedDateTime,body,bodyPreview,hasAttachments
+```
+
+Rules:
+- `receivedDateTime` value must be UTC with `Z` suffix
+- When using `$orderby=receivedDateTime`, `$filter` must also reference `receivedDateTime` and it must be listed first in the `$filter` expression
+- `$top` max is 1000; default is 10 (always specify it)
+- `body` is NOT in the default response — must be in `$select`
+- `bodyPreview` is in the default response — 255 chars plain text
+
+---
+
+## Anti-Features (Do Not Build)
+
+Explicitly excluded from this migration. These represent scope creep risks.
+
+| Anti-Feature | Why Avoid | Boundary |
+|---|---|---|
+| msgraph-sdk async adoption | Requires converting synchronous `main.py` to async. Out of scope for pure swap. | Use `requests` + `msal` directly |
+| Delta query incremental sync | Graph's delta tokens are more efficient than time-based state, but the existing `StateManager` works correctly. Replacing it adds risk with no user-visible benefit. | Keep time-based `StateManager` |
+| Exchange RBAC scoping | Security hardening improvement. Valid but out of scope. | `Mail.Read` with Entra ID consent |
+| Immutable message IDs | InboxIQ does not use IDs for lookups. Not needed. | No ID-based operations |
+| Webhook / push notifications | InboxIQ uses polling (Task Scheduler). Switching models is out of scope. | Keep Windows Task Scheduler polling |
+| Graph batch requests | Only two API calls per run. Batching adds complexity for no gain. | Sequential individual calls |
+| Read receipts, mail flags | Not used by InboxIQ. | Not applicable |
+| Streaming large bodies | Only needed if body fetches cause 504 timeouts. Investigate only if observed in production. | Single-call body fetch |
+| Mail.Read.Shared delegated permissions | These permissions only work with delegated (user) auth, not app-only. InboxIQ uses app-only. | Use `Mail.Read` application permission |
+
+---
 
 ## Sources
 
-### Microsoft 365 Message Center Official Documentation
-- [Message center in the Microsoft 365 admin center - Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/message-center?view=o365-worldwide)
-- [microsoft-365-docs/microsoft-365/admin/manage/message-center.md at public - GitHub](https://github.com/MicrosoftDocs/microsoft-365-docs/blob/public/microsoft-365/admin/manage/message-center.md)
-- [Steps to set up a weekly digest email of message center changes for Microsoft Defender for Office 365](https://learn.microsoft.com/en-us/defender-office-365/step-by-step-guides/stay-informed-with-message-center)
-
-### Message Center Categories and Tags
-- [Microsoft 365 Message Center Categories Explained - ChangePilot](https://changepilot.cloud/blog/microsoft-365-message-center-categories-explained)
-- [Microsoft 365 Message Center and Microsoft 365 Roadmap Explained - ChangePilot](https://changepilot.cloud/blog/microsoft-365-message-center-roadmap-explained)
-
-### Message Center Updates and Examples
-- [Top 10 Microsoft 365 Message Center & Roadmap Items in February 2026 - ChangePilot](https://changepilot.cloud/blog/top-10-microsoft-365-message-center-roadmap-items-in-february-2026)
-- [January 2026 Top Microsoft 365 Message Center & Roadmap Updates - ChangePilot](https://changepilot.cloud/blog/january-2026-top-microsoft-365-message-center-roadmap-updates)
-- [Guardian 365 Monthly Bulletin: Major M365 Updates & Retirements - January 2026](https://forsyteit.com/guardian-365-monthly-bulletin-major-m365-updates-retirements-january-2026/)
-
-### Planner Integration and Admin Workflows
-- [Track message center tasks in Planner - Microsoft Learn](https://learn.microsoft.com/en-us/planner/track-message-center-tasks-planner)
-- [How to sync Microsoft 365 Message Center with Planner - SharePoint Maven](https://sharepointmaven.com/how-to-sync-microsoft-365-message-center-with-planner/)
-- [Using Planner to Manage Microsoft 365 Change - ChangePilot](https://changepilot.cloud/blog/microsoft-planner-for-managing-m365-message-center)
-- [Message Center sync to Microsoft Planner now Generally Available - Microsoft Community](https://techcommunity.microsoft.com/blog/microsoft_365blog/message-center-sync-to-microsoft-planner-now-generally-available/1692512)
-
-### Service Communications API (Graph)
-- [Office 365 Service Communications API reference - Microsoft Learn](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-service-communications-api-reference)
-- [Using the Service Communications API to Report Service Update Messages - Practical365](https://practical365.com/service-update-messages-report/)
-- [Access service health and communications in Microsoft Graph - Microsoft Learn](https://learn.microsoft.com/en-us/graph/service-communications-concept-overview)
-
-### UX Research - Notifications and Urgency
-- [Indicators, Validations, and Notifications: Pick the Correct Communication Option - NN/G](https://www.nngroup.com/articles/indicators-validations-notifications/)
-- [How to Design a Notification System: A Complete Guide - System Design Handbook](https://www.systemdesignhandbook.com/guides/design-a-notification-system/)
-
-### Admin Workflow and Best Practices
-- [Staying on top of Microsoft 365 Updates - Microsoft Community Hub](https://techcommunity.microsoft.com/blog/coreinfrastructureandsecurityblog/staying-on-top-of-microsoft-365-updates/1201118)
-- [Stay on top of changes - Microsoft 365 admin - Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/stay-on-top-of-updates?view=o365-worldwide)
+| Source | URL | Confidence |
+|---|---|---|
+| List messages API (v1.0) | https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0 | HIGH |
+| sendMail API (v1.0) | https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0 | HIGH |
+| Message resource type | https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0 | HIGH |
+| Send from another user | https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user | HIGH |
+| Create and send messages | https://learn.microsoft.com/en-us/graph/outlook-create-send-messages | HIGH |
+| Shared/delegated folder access | https://learn.microsoft.com/en-us/graph/outlook-share-messages-folders | HIGH |
+| EWS to Graph API mappings | https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-api-mapping | HIGH |
+| Exchange RBAC for Applications | https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac | HIGH |
+| Python email tutorial | https://learn.microsoft.com/en-us/graph/tutorials/python-email | HIGH |
+| msgraph-sdk Python PyPI | https://pypi.org/project/msgraph-sdk/ | HIGH |
+| EWS to Graph migration overview | https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-overview | HIGH |

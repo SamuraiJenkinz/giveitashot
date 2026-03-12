@@ -1,795 +1,534 @@
-# Domain Pitfalls: Adding Email Classification and Multi-Digest Features
+# Pitfalls Research: Graph API Migration
 
-**Domain:** Email classification and multi-digest email summarization
-**Researched:** 2026-02-23
-**Overall confidence:** HIGH (based on multiple authoritative sources and recent 2026 research)
-
-## Executive Summary
-
-Adding email classification and a second digest type to an existing email pipeline introduces several critical failure modes. The primary risks cluster around: (1) brittle pattern-based detection causing false positives/negatives, (2) state management corruption when tracking two digest streams, (3) LLM structured output reliability failures, and (4) deployment issues in single-invocation scheduled tasks.
-
-**Critical insight from 2026 research:** Traditional pattern-matching approaches are increasingly inadequate, with up to 50% of well-crafted messages bypassing static filters. Microsoft's own email systems have shifted away from pattern-matching toward AI-based behavioral analysis. This creates a challenge: M365 Message Center emails may not have stable, reliable patterns to detect.
+**Domain:** EWS (exchangelib) to Microsoft Graph API — Python email client
+**Project:** InboxIQ — Shared mailbox reader + digest sender (mmc.com)
+**Researched:** 2026-03-12
+**Overall confidence:** HIGH (all critical pitfalls verified against official Microsoft docs and current project source)
 
 ---
 
-## Critical Pitfalls
+## Critical Pitfalls (will break the migration)
 
-### Pitfall 1: Brittle Pattern-Based Detection of M365 Message Center Emails
-
-**What goes wrong:**
-
-Pattern-based email detection (subject line keywords, sender addresses) breaks when Microsoft changes their Message Center email format, which they do periodically without notice. False positives occur when regular emails contain similar keywords ("update", "important", "action required"), causing them to be misrouted to the admin digest. False negatives occur when Message Center format changes and emails are missed entirely.
-
-**Why it happens:**
-
-Microsoft actively evolves email formats and authentication requirements. In 2026, Microsoft enforced stricter SPF/DKIM/DMARC rules and introduced LLM-based detection in Defender, indicating format fluidity. The Message Center notification emails are transactional communications that Microsoft can modify at any time without versioning or stability guarantees.
-
-**Evidence from research:**
-
-- Microsoft introduced "Organizational Messages to support email delivery" with expected GA in late March 2026, representing format evolution ([MC1189665 - Microsoft 365 Message Center Archive](https://mc.merill.net/message/MC1189665))
-- Pattern-matching tools "cannot adapt to new, tailored phishing or BEC scams" and have "brittle rules that might catch benign messages" ([How Does AI Email Security Work in 2026](https://strongestlayer.com/blog/ai-email-security-2025-vs-traditional-filters))
-- Static signature approaches "may eventually become obsolete for sophisticated attacks" ([Microsoft Exchange Spam Filtering Update 2026](https://www.getmailbird.com/microsoft-exchange-spam-filtering-update/))
-
-**Consequences:**
-
-- **False positives:** Regular urgent emails from users/vendors misclassified as admin updates → Important operational emails buried in wrong digest
-- **False negatives:** Microsoft format change → Major updates missed entirely → SLA breaches, compliance violations, service disruptions
-- **Maintenance burden:** Constant pattern tuning as formats drift
-- **User trust erosion:** Inconsistent classification reduces digest reliability
-
-**Prevention strategy:**
-
-1. **Multi-signal detection** (not single pattern):
-   - Sender domain + subject keywords + Message ID patterns + body structure
-   - Weighted scoring system (≥3/5 signals = classified as major update)
-   - Example: `from:microsoft.com` (1pt) + `subject contains "MC\d+"` (2pts) + `body contains "Message Center"` (1pt) + `priority:high` (1pt)
-
-2. **Fallback classification layer**:
-   - If pattern-based detection fails/uncertain, use LLM classification as backup
-   - Prompt: "Is this a Microsoft 365 service announcement requiring admin action? YES/NO/UNCERTAIN"
-   - Route UNCERTAIN cases to regular digest (conservative default)
-
-3. **Detection confidence logging**:
-   - Log detection confidence score for each email classified
-   - Track false positive/negative reports from users
-   - Alert when confidence drops below threshold (indicates pattern drift)
-
-4. **Regular expression testing**:
-   - Maintain test corpus of known Message Center emails
-   - Run detection against corpus weekly
-   - Alert on detection rate changes >10%
-
-**Detection (warning signs):**
-
-- Users report missing major updates in their digest
-- Regular emails appearing in admin digest
-- Detection confidence scores trending downward
-- Microsoft announces Message Center changes in... Message Center (meta-problem)
-
-**Phase to address:** Phase 1 (Detection Strategy) — Must validate detection reliability before building dual-digest infrastructure.
+These will produce 401/403 errors, silent data loss, or complete failure to send/receive.
 
 ---
 
-### Pitfall 2: State Management Corruption with Two Digest Streams
+### Pitfall C-1: Wrong MSAL Scope for Graph API
 
-**What goes wrong:**
+**What goes wrong:** The current `auth.py` uses scope `https://outlook.office365.com/.default`, which issues a token for the EWS resource. Using this token against Graph endpoints (`https://graph.microsoft.com/...`) returns HTTP 401 Unauthorized immediately. The `aud` (audience) claim in the token is `https://outlook.office365.com/` — Graph rejects it because it expects `https://graph.microsoft.com/`.
 
-The existing `StateManager` tracks a single `last_run` timestamp. When adding a second digest type, state management becomes ambiguous: Does `last_run` apply to both digests? If one digest fails, does the other's state get updated? If major updates are fetched but not sent (e.g., empty digest), does state advance? State corruption causes emails to be processed multiple times or skipped entirely.
+**Why it happens:** EWS and Graph are separate API surfaces with separate resource URIs. MSAL tokens encode their intended audience. They are not interchangeable between APIs.
 
-**Why it happens:**
+**Current code in `auth.py` (must change):**
+```python
+scopes = ["https://outlook.office365.com/.default"]
+```
 
-The current `StateManager` is designed for a single linear workflow: fetch → summarize → send → update state. Adding dual digests introduces branching logic: fetch → classify → (summarize regular + summarize major) → (send regular + send major) → update state. Partial failures at any branch can leave state inconsistent.
+**Correct code for Graph:**
+```python
+scopes = ["https://graph.microsoft.com/.default"]
+```
 
-**Evidence from research:**
+**Warning signs:** HTTP 401 on every Graph call immediately after token acquisition appears to succeed. The MSAL call itself returns no error — the token is valid, just for the wrong audience.
 
-- Data pipeline state is "an underappreciated challenge" requiring "atomic commits with the data" ([Data pipeline state management: An underappreciated challenge](https://www.fivetran.com/blog/data-pipeline-state-management-an-underappreciated-challenge))
-- "The pipeline state is a Python dictionary that gets committed atomically with the data" — proper state management requires transactional semantics ([Advanced state management for incremental loading](https://dlthub.com/docs/general-usage/incremental/advanced-state-management))
-- EWS `SyncState` "contains a base64-encoded form of the synchronization data that is updated after each successful request" — state must be tied to fetch success, not send success ([SyncState | Microsoft Learn](https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/syncstate-ex15websvcsotherref))
+**Prevention:** Change the scope constant in the new `auth.py` (or `graph_client.py`) before writing any Graph call code. Test token acquisition in isolation and decode the resulting JWT at jwt.io to confirm `aud` is `https://graph.microsoft.com/`.
 
-**Consequences:**
+**Phase:** Auth module update — first task of the migration.
 
-- **Duplicate digests:** State not updated after failure → Same emails sent again on next run
-- **Missing emails:** State updated prematurely → Emails never summarized
-- **Inconsistent digests:** Regular digest sent but major digest failed → Admins missing critical updates
-- **State file corruption:** Concurrent writes or partial updates → State file becomes invalid
-- **Cascading failures:** State corruption causes all subsequent runs to fail
-
-**Prevention strategy:**
-
-1. **Separate state per digest type**:
-   ```python
-   # .state.json structure
-   {
-     "regular_digest": {
-       "last_run": "2026-02-23T10:00:00Z",
-       "last_email_id": "AAMkAGE..."
-     },
-     "major_updates_digest": {
-       "last_run": "2026-02-23T10:00:00Z",
-       "last_email_id": "AAMkAGF..."
-     }
-   }
-   ```
-
-2. **Atomic state updates with rollback**:
-   - Write to temporary state file first (`.state.json.tmp`)
-   - Validate JSON structure
-   - Atomic rename to `.state.json` only after successful digest send
-   - Keep backup of previous state (`.state.json.backup`)
-
-3. **State update policy**:
-   - Update state ONLY after digest email successfully sent
-   - If one digest fails, do NOT update its state (allows retry on next run)
-   - If email fetch fails, do NOT update any state
-   - Log state transitions with timestamps
-
-4. **State validation on load**:
-   ```python
-   def validate_state(state: dict) -> bool:
-       required_keys = ["regular_digest", "major_updates_digest"]
-       for key in required_keys:
-           if key not in state:
-               return False
-           if "last_run" not in state[key]:
-               return False
-       return True
-   ```
-
-5. **Recovery from corruption**:
-   - If state file invalid, load from `.state.json.backup`
-   - If backup also invalid, treat as first run (fetch today's emails only)
-   - Log state corruption events for monitoring
-
-**Detection (warning signs):**
-
-- State file grows unexpectedly large
-- Timestamps in state file inconsistent with actual run times
-- Users report duplicate digest emails
-- Users report missing emails that should be in digest
-- State file JSON decode errors in logs
-
-**Phase to address:** Phase 2 (State Management Redesign) — Must be in place before dual-digest goes live.
+**Sources:** [Authentication differences EWS vs Graph](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-authentication), [Access both EWS and Graph Q&A](https://learn.microsoft.com/en-us/answers/questions/298599/access-both-ews-and-graph)
 
 ---
 
-### Pitfall 3: LLM Structured Output Reliability for Deadline/Action Extraction
+### Pitfall C-2: App-Only Permissions Grant Tenant-Wide Mailbox Access by Default
 
-**What goes wrong:**
+**What goes wrong:** When `Mail.Read` and `Mail.Send` are granted as Application permissions in Entra ID with admin consent, the app has read/send access to every mailbox in the entire mmc.com tenant — not just `messagingai@marsh.com`. This is a security violation in an enterprise environment and will either be blocked at the admin consent stage or trigger a security incident after deployment.
 
-LLM prompts to extract structured data (deadlines, action items, impact levels) from Message Center emails produce inconsistent formats, hallucinated dates, missing fields, or complete failures. Azure OpenAI JSON mode guarantees valid JSON but not schema compliance. The major updates digest becomes unreliable because deadline dates are wrong or action items are fabricated.
+**Why it happens:** Graph application permissions (client credentials flow) are organization-scoped by default. There is no per-mailbox consent in Entra ID alone.
 
-**Why it happens:**
+**The fix — two options, both require Exchange Online PowerShell:**
 
-Message Center emails contain semi-structured natural language. Dates may be relative ("next month"), vague ("coming soon"), or missing. Action requirements may be implicit. LLMs lack "structural fidelity, relational binding, and numerical grounding" for complex extraction tasks. Prompt brittleness means small variations in email format cause extraction to break.
+Option A: **ApplicationAccessPolicy (AAP)** — Legacy, still fully supported as of March 2026. Creates a mail-enabled security group, adds the shared mailbox, associates the policy with the app registration. Propagation delay: up to 24 hours.
 
-**Evidence from research:**
+Option B: **RBAC for Applications** — New replacement for AAP. Uses Exchange Online Management Role Assignments scoped to a Management Scope or Admin Unit. Propagation delay: 30 minutes to 2 hours for active apps, 30 minutes for idle apps.
 
-- "State-of-the-art models often fail to generate fully schema-compliant and semantically faithful JSON outputs" ([LLMStructBench: Benchmarking Large Language Model Structured Data Extraction](https://www.arxiv.org/pdf/2602.14743))
-- LLMs show "systematic structural breakdowns, including role reversals, cross-analysis binding drift, instance compression, and numeric misattribution" ([Diagnosing Structural Failures in LLM-Based Evidence Extraction](https://arxiv.org/abs/2602.10881))
-- "Prompt fine-tuning is a real bottleneck, as every time the prompt is modified to ensure the LLM doesn't miss a fact, a new issue gets introduced" ([Understanding LLM Limitations: Counting and Parsing Structured Data](https://docs.dust.tt/docs/understanding-llm-limitations-counting-and-parsing-structured-data))
-- Azure OpenAI now requires specific API versions (2024-10-21+) for structured outputs, and "if you're using an older version, even a valid schema may fail" ([Azure Open AI Responses API with structured outputs](https://learn.microsoft.com/en-us/answers/questions/5578889/azure-open-ai-responses-api-with-structured-output))
+**Important:** If both Entra ID permissions AND RBAC for Applications are configured, access is the union of both. To achieve scoping, the Entra ID organization-wide consent must be removed and only the Exchange RBAC assignment used. Failing to remove the Entra ID grant defeats the scoping entirely.
 
-**Consequences:**
+**Warning signs:** IT/security rejects the permissions request because it is too broad; or the app can read any employee's inbox after permissions are granted.
 
-- **Wrong deadlines:** Admins act on incorrect dates → Missed compliance windows or premature action
-- **Hallucinated actions:** LLM invents action items not in email → Wasted effort, confusion
-- **Missing critical info:** LLM fails to extract actual deadline → Service disruption
-- **Schema drift:** JSON output doesn't match expected structure → Digest formatting breaks
-- **User distrust:** Unreliable extraction → Admins ignore digest, defeating its purpose
+**Prevention:** Include mailbox access restriction as an explicit, documented prerequisite step — not optional post-deployment hardening. Prepare the Exchange Online PowerShell commands ahead of the admin meeting.
 
-**Prevention strategy:**
+**Phase:** Infrastructure/permissions setup, before any Graph code is deployed to any environment.
 
-1. **Use Azure OpenAI Structured Outputs (not JSON mode)**:
-   - Requires API version `2024-10-21` or later
-   - Provides 100% schema compliance guarantee
-   - Define strict JSON Schema for extraction:
-   ```python
-   {
-     "type": "object",
-     "properties": {
-       "deadline": {"type": "string", "format": "date"},  # ISO 8601 or "NONE"
-       "impact_level": {"enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]},
-       "action_required": {"type": "boolean"},
-       "action_items": {"type": "array", "items": {"type": "string"}},
-       "affected_services": {"type": "array", "items": {"type": "string"}},
-       "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-     },
-     "required": ["deadline", "impact_level", "action_required", "confidence"]
-   }
-   ```
-
-2. **Prompt engineering with examples** (2026 best practice):
-   - Include 2-3 example extractions in system prompt
-   - Use low temperature (0.1-0.3) for consistency
-   - Explicit instructions: "If no deadline mentioned, return 'NONE'. Do not infer or estimate dates."
-   - Example format: "Show the model exactly what you expect" ([How to Set Up Prompt Engineering Best Practices for Azure OpenAI](https://oneuptime.com/blog/post/2026-02-16-how-to-set-up-prompt-engineering-best-practices-for-azure-openai-gpt-4/view))
-
-3. **Validation and fallback**:
-   - Check `confidence` score in LLM response
-   - If confidence <0.7, flag for manual review
-   - Validate extracted dates are in future (not past)
-   - Validate deadline format matches ISO 8601
-   - If validation fails, display email verbatim in digest (no extraction)
-
-4. **Human-in-the-loop for high-stakes items**:
-   - If `impact_level: HIGH` AND `action_required: true`, include full email text in digest (not just extraction)
-   - Allows admins to verify LLM extraction against source
-
-5. **Extraction metrics logging**:
-   - Track confidence scores over time
-   - Log failed validations
-   - Alert when extraction failure rate >10%
-
-**Detection (warning signs):**
-
-- Confidence scores trending downward
-- Admins report incorrect deadlines in digest
-- Validation failures in logs
-- Azure OpenAI API version deprecation warnings
-- JSON schema validation errors
-
-**Phase to address:** Phase 3 (Major Updates Summarization) — Extraction reliability must be proven before digest goes to production.
+**Sources:** [RBAC for Applications in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac), [Secure Access to Mailboxes via Graph](https://c7solutions.com/2024/09/secure-access-to-mailboxes-via-graph)
 
 ---
 
-### Pitfall 4: Recipient Configuration Sprawl and Testing Blindness
+### Pitfall C-3: Using `/me/sendMail` in App-Only (Client Credentials) Flow
 
-**What goes wrong:**
+**What goes wrong:** Using `/me/sendMail` returns 401 or routes the request incorrectly because `/me` resolves to the authenticated user — and in client credentials flow there is no authenticated user. The service principal is not a user; it has no `/me` mailbox. The call either fails or sends from an unexpected identity.
 
-Adding separate recipients for major updates (`MAJOR_UPDATE_TO`, `MAJOR_UPDATE_CC`, `MAJOR_UPDATE_BCC`) creates configuration sprawl. It becomes unclear which config applies to which digest. Testing becomes difficult because there's no way to validate recipient configuration without sending real emails to real people, risking spam or exposing test data.
+**Why it happens:** `/me` is a delegated-flow shorthand. App-only flows must always use `/users/{id}` or `/users/{userPrincipalName}`.
 
-**Why it happens:**
+**Correct endpoint for app-only flow:**
+```
+POST https://graph.microsoft.com/v1.0/users/{sharedMailbox}/sendMail
+```
+Where `{sharedMailbox}` is the UPN or SMTP address (e.g., `messagingai@marsh.com`).
 
-The existing system has one set of recipients. Adding a second set doubles the configuration surface area. Python's configparser or environment variables don't enforce relationships between configs. No built-in validation that recipients are valid email addresses. No sandbox environment to test email sending without hitting real mailboxes.
+**Warning signs:** 401 on send calls even though Mail.Send permission is granted and read calls work fine.
 
-**Evidence from research:**
+**Prevention:** Use `/users/{id}/sendMail` exclusively in the new `graph_client.py`. Add a comment at the definition explaining why `/me` is prohibited.
 
-- Email testing tools like Mailtrap and MailMock exist specifically because "True email flow validation requires real integration tests where you need to see the email land in an inbox" ([Email Flow Validation in Microservices](https://www.devopsroles.com/email-flow-validation-microservices-devops))
-- "Unit test's mock object library lets you mock the SMTP server connection without sending the emails" but EWS doesn't use SMTP — requires different approach ([Python Test Email: Tutorial with Code Snippets](https://mailtrap.io/blog/python-test-email/))
-- "It's useful to make sure emails generated by forms go to an appropriate test account during the testing phase, and go to the correct recipients once in production" — environment-based recipient routing is standard practice ([Jadu Forms: Set Email Recipients by Environment](https://it.umn.edu/services-technologies/how-tos/jadu-forms-set-email-recipients))
-- Bcc testing is particularly difficult: "Most email testing tools do not support Bcc, but MailTrap displays all Bcc'ed addresses" ([21 Best Email Testing Tools in 2026](https://mailtrap.io/blog/email-testing-tools/))
+**Phase:** Graph client implementation — `send_email` method.
 
-**Consequences:**
-
-- **Wrong recipients:** Major updates sent to regular digest recipients or vice versa
-- **Configuration drift:** Unclear which env var controls which digest
-- **Test email spam:** During development, test emails sent to real admins
-- **Bcc exposure:** Bcc recipients accidentally revealed in To/Cc field
-- **No validation:** Invalid email addresses not caught until runtime
-- **Production debugging:** Can't test recipient configuration without sending real emails
-
-**Prevention strategy:**
-
-1. **Structured configuration with validation**:
-   ```python
-   @dataclass
-   class DigestConfig:
-       to_recipients: list[str]
-       cc_recipients: list[str] = field(default_factory=list)
-       bcc_recipients: list[str] = field(default_factory=list)
-
-       def __post_init__(self):
-           # Validate all recipients are valid email addresses
-           for recipient in (self.to_recipients + self.cc_recipients + self.bcc_recipients):
-               if not self._is_valid_email(recipient):
-                   raise ValueError(f"Invalid email address: {recipient}")
-
-       @staticmethod
-       def _is_valid_email(email: str) -> bool:
-           import re
-           pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-           return bool(re.match(pattern, email))
-
-   class Config:
-       REGULAR_DIGEST = DigestConfig(
-           to_recipients=os.getenv("REGULAR_DIGEST_TO").split(","),
-           cc_recipients=os.getenv("REGULAR_DIGEST_CC", "").split(",") if os.getenv("REGULAR_DIGEST_CC") else []
-       )
-       MAJOR_UPDATES_DIGEST = DigestConfig(
-           to_recipients=os.getenv("MAJOR_UPDATES_TO").split(","),
-           cc_recipients=os.getenv("MAJOR_UPDATES_CC", "").split(",") if os.getenv("MAJOR_UPDATES_CC") else []
-       )
-   ```
-
-2. **Environment-based recipient routing**:
-   ```python
-   # .env.development
-   ENVIRONMENT=development
-   REGULAR_DIGEST_TO=dev-team@internal.com
-   MAJOR_UPDATES_TO=dev-admin@internal.com
-
-   # .env.production
-   ENVIRONMENT=production
-   REGULAR_DIGEST_TO=team@mmc.com
-   MAJOR_UPDATES_TO=it-admins@mmc.com
-
-   # In code
-   if Config.ENVIRONMENT == "development":
-       # All emails go to test accounts
-   ```
-
-3. **Dry-run mode enhancement**:
-   - `--dry-run` should show BOTH digest recipients
-   - Clear labeling: "REGULAR DIGEST → [emails]" and "MAJOR UPDATES DIGEST → [emails]"
-   - Validate recipients in dry-run (fail early if invalid)
-
-4. **Testing without live mailbox**:
-   - **Option A: Mock EWS send_email()** in tests
-     ```python
-     def test_major_updates_digest(mocker):
-         mock_send = mocker.patch('src.ews_client.EWSClient.send_email')
-         # Run digest generation
-         # Assert mock_send called with correct recipients
-     ```
-
-   - **Option B: Test email address** for development
-     - Configure dev environment to send all digests to `inboxiq-test@mmc.com`
-     - Inspect test mailbox to verify digest content and recipients
-
-5. **Recipient audit logging**:
-   ```python
-   logger.info(f"Sending REGULAR digest to: TO={regular_to}, CC={regular_cc}, BCC=[REDACTED]")
-   logger.info(f"Sending MAJOR UPDATES digest to: TO={major_to}, CC={major_cc}, BCC=[REDACTED]")
-   # Never log Bcc addresses in plain text (privacy)
-   ```
-
-**Detection (warning signs):**
-
-- Users report receiving wrong digest type
-- Admins not receiving major updates digest
-- Email validation errors at runtime
-- Bcc recipients report they can see other Bcc addresses (huge privacy issue)
-- Configuration questions during code review
-
-**Phase to address:** Phase 4 (Recipient Configuration) — Must be validated in development before production deployment.
+**Sources:** [user: sendMail API reference](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0), [Using sendMail with application permissions Q&A](https://learn.microsoft.com/en-us/answers/questions/2225484/using-sendmail-in-graph-api-with-application-permi)
 
 ---
 
-### Pitfall 5: Scheduled Task Failure Cascade in Single-Invocation Deployment
+### Pitfall C-4: Setting the "from" Field Incorrectly for Shared Mailbox Sending
 
-**What goes wrong:**
+**What goes wrong:** When sending via `Mail.Send` application permission, Graph allows sending as any user in the tenant. The `from` field in the message body must be explicitly set to the desired sender address. If omitted, the message is sent from the mailbox in the URL path — which may or may not be the desired From address. If set to an address the app does not have permission to send from, Graph returns 403 `ErrorSendAsDenied`.
 
-The existing Windows Task Scheduler invocation runs one script that fetches, summarizes, and sends one digest. When adding a second digest, the script must do twice the work in one invocation. If the major updates digest fails (LLM timeout, API error, invalid email), the entire script fails, preventing the regular digest from being sent. The next hourly run may duplicate emails or skip them entirely depending on state management.
+**EWS equivalent:** `exchangelib` uses `author=Mailbox(email_address=send_from)` on the `Message` object. This maps directly to the `from` field in Graph.
 
-**Why it happens:**
+**Current config logic in `config.py`:**
+```python
+@classmethod
+def get_send_from(cls) -> str:
+    return cls.SEND_FROM if cls.SEND_FROM else cls.USER_EMAIL
+```
+This custom From address logic must be preserved in `graph_client.py` by setting the `from` field in the JSON body.
 
-The current `main.py` has a single linear flow: fetch → summarize → send → exit. Adding dual digests creates multiple failure points within one script execution. Python exceptions in one digest can terminate the entire script before the other digest runs. Windows Task Scheduler has no built-in retry logic or partial-success handling.
+**Correct JSON body for send with custom From:**
+```json
+{
+  "message": {
+    "subject": "...",
+    "from": {
+      "emailAddress": {"address": "messagingai@marsh.com"}
+    },
+    "toRecipients": [...],
+    "body": {"contentType": "HTML", "content": "..."},
+    "saveToSentItems": true
+  }
+}
+```
 
-**Evidence from research:**
+**Warning signs:** 403 `ErrorSendAsDenied` responses; emails arriving from wrong sender; `SEND_FROM` config value being silently ignored.
 
-- Task Scheduler best practices: "Create separate tasks for preparation, execution, and verification phases rather than monolithic scripts" — this project does the opposite ([Error handling in scheduled tasks](https://www.advscheduler.com/error-handling-in-scheduled-tasks))
-- "Task Scheduler failed to start task because the number of tasks in the task queue exceeding the quota" — single monolithic task is more reliable than multiple tasks when system is under load ([Troubleshooting Windows Task Scheduler](https://www.xplg.com/windows-server-windows-task-scheduler/))
-- Exception handling: "Wrap task logic in try-catch blocks to prevent thread termination" ([Exception handling in ScheduledExecutorService](https://www.dontpanicblog.co.uk/2021/05/15/exception-handling-in-scheduledexecutorservice/))
-- 2026 best practices: "Allocate 25% more time than estimated for complex operations" and "Implement 15-minute buffer periods between tasks that share network or disk resources" ([Windows Task Scheduler Error 0x41301: Complete Fix Guide](https://copyprogramming.com/howto/windows-task-schduler-keep-showing-0x41301))
+**Prevention:** In `graph_client.py`, always include the `from` field and map it from `Config.get_send_from()`. Add an integration test that verifies the From address on a sent email.
 
-**Consequences:**
+**Phase:** Graph client implementation (`send_email` method) + integration testing.
 
-- **All-or-nothing failure:** Major updates digest error → Regular digest never sent → Entire team misses updates
-- **State inconsistency:** Partial state update → Emails duplicated or skipped on retry
-- **Silent failures:** Exception in one digest buried in logs → No digest sent, no alert
-- **Timeout cascade:** Major updates digest takes 3 minutes → Task Scheduler kills process → No digests sent
-- **Debugging difficulty:** Single log file contains interleaved output from both digests → Hard to trace failures
-
-**Prevention strategy:**
-
-1. **Independent digest execution with error isolation**:
-   ```python
-   def main() -> int:
-       """Main entry point - executes both digests with error isolation."""
-
-       # Fetch emails once (shared by both digests)
-       try:
-           emails = fetch_emails()
-       except Exception as e:
-           logger.error(f"Email fetch failed: {e}")
-           return 1  # Hard failure - can't proceed
-
-       # Classify emails (shared by both digests)
-       try:
-           regular_emails, major_update_emails = classify_emails(emails)
-       except Exception as e:
-           logger.error(f"Classification failed: {e}")
-           # Fallback: All emails go to regular digest
-           regular_emails = emails
-           major_update_emails = []
-
-       # Execute digests independently
-       regular_success = execute_regular_digest(regular_emails)
-       major_success = execute_major_updates_digest(major_update_emails)
-
-       # Return success only if both succeeded
-       return 0 if (regular_success and major_success) else 1
-
-   def execute_regular_digest(emails: list[Email]) -> bool:
-       """Execute regular digest with full error handling."""
-       try:
-           # Summarize, send, update state
-           return True
-       except Exception as e:
-           logger.error(f"Regular digest failed: {e}", exc_info=True)
-           return False
-
-   def execute_major_updates_digest(emails: list[Email]) -> bool:
-       """Execute major updates digest with full error handling."""
-       if not emails:
-           logger.info("No major updates to send")
-           return True  # Empty digest is success
-
-       try:
-           # Summarize, send, update state
-           return True
-       except Exception as e:
-           logger.error(f"Major updates digest failed: {e}", exc_info=True)
-           return False  # Don't let this kill regular digest
-   ```
-
-2. **State management per digest**:
-   - Update state independently for each digest
-   - If regular digest succeeds but major fails, regular state updates (allows retry of major only)
-   - Log state transitions separately
-
-3. **Timeout management**:
-   - Set Task Scheduler timeout to 10 minutes (2x expected duration)
-   - Set internal timeouts for LLM calls: 30 seconds for regular digest, 60 seconds for major updates
-   - If LLM times out, fall back to basic summarization (don't fail entire digest)
-
-4. **Logging strategy**:
-   ```python
-   logger.info("=" * 60)
-   logger.info("REGULAR DIGEST EXECUTION START")
-   logger.info("=" * 60)
-   # ... regular digest logic ...
-   logger.info("REGULAR DIGEST EXECUTION COMPLETE")
-
-   logger.info("=" * 60)
-   logger.info("MAJOR UPDATES DIGEST EXECUTION START")
-   logger.info("=" * 60)
-   # ... major updates digest logic ...
-   logger.info("MAJOR UPDATES DIGEST EXECUTION COMPLETE")
-   ```
-
-5. **Monitoring and alerting**:
-   - Log exit codes: 0 = both succeeded, 1 = one or both failed
-   - Parse logs for "DIGEST EXECUTION COMPLETE" markers
-   - Alert if either digest missing completion marker
-   - Track execution duration (alert if >5 minutes)
-
-**Detection (warning signs):**
-
-- Task Scheduler showing failed executions (non-zero exit code)
-- Logs showing one digest completed but not the other
-- Users report missing digests
-- Execution duration trending upward (approaching timeout)
-- State file updates inconsistent with logged executions
-
-**Phase to address:** Phase 5 (Dual-Digest Orchestration) — Must be tested thoroughly in development with simulated failures.
+**Sources:** [Send Outlook messages from another user](https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user)
 
 ---
 
-## Moderate Pitfalls
+### Pitfall C-5: Application Permission Type vs. Delegated — Impersonation Does Not Exist in Graph
 
-### Pitfall 6: False Negative Explosion with Conservative Detection
+**What goes wrong:** The current `ews_client.py` uses `access_type=IMPERSONATION` from exchangelib. This EWS mechanism has no equivalent in Graph. If the Entra ID app registration is configured with Delegated permissions instead of Application permissions, all Graph calls to `/users/{id}/...` will fail with 403 in daemon mode because there is no user session.
 
-**What goes wrong:**
+**Why it happens:** EWS impersonation was a server-side permission grant. Graph uses OAuth 2.0 application permissions with admin consent. During app registration, it is easy to accidentally add the Delegated variant of `Mail.Read`/`Mail.Send` instead of the Application variant — they appear almost identically in the Azure portal.
 
-To avoid false positives (regular emails in admin digest), detection logic is made overly strict. This causes false negatives: legitimate major updates are missed because they don't match all detection criteria. Admins miss critical deadlines because the digest doesn't include actual major updates.
+**How to verify correct setup:** In the Entra ID App Registration under "API permissions":
+- Type column must show **Application** (not Delegated) for `Mail.Read` and `Mail.Send`
+- Status column must show **Granted for [tenant]** (admin consent completed)
 
-**Why it happens:**
+**Warning signs:** Auth works fine when testing interactively (delegated) but fails when running as a Windows Task Scheduler job (no interactive user).
 
-Fear of spamming admins with irrelevant emails drives conservative thresholds. Microsoft's Message Center emails may have subtle variations that don't match strict patterns. The tension between precision (no false positives) and recall (no false negatives) is resolved in favor of precision, at the cost of missing important emails.
+**Prevention:** Screenshot the permissions page after setup. Verify permission type is "Application" before the first end-to-end test run.
 
-**Evidence from research:**
+**Phase:** App registration setup.
 
-- False negatives (missed threats) occur when "well-written, contextually appropriate messages that happen to be malicious" bypass filters ([How Machine Learning Spam Filters Analyze Your Email 2026](https://www.getmailbird.com/how-machine-learning-spam-filters-analyze-email/))
-- Precision vs recall tradeoff: "increasing classification thresholds decreases false positives but increases false negatives" ([Classification: Accuracy, recall, precision](https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall))
+**Sources:** [Authentication differences EWS vs Microsoft Graph](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-authentication)
+
+---
+
+## Moderate Pitfalls (will cause bugs)
+
+These won't cause immediate startup failures but will introduce subtle data loss, wrong results, or behavioral regressions.
+
+---
+
+### Pitfall M-1: Pagination — Default Page Size is 10, Not All Emails
+
+**What goes wrong:** A call to `GET /users/{id}/mailFolders/inbox/messages` returns only 10 messages by default. The current EWS code uses `[:max_emails]` slice which exchangelib handles transparently by fetching pages internally. In Graph using the raw `requests` library, the developer must implement pagination manually. Without it, the hourly run silently processes only 10 emails regardless of how many arrived.
+
+**Specific behavior:**
+- The response contains `@odata.nextLink` when more results exist
+- `$top` is an upper bound, not an exact count — the API may return fewer
+- Maximum `$top` value is 1000
+- Do NOT extract `$skip` from `@odata.nextLink` and reconstruct your own URL — use the entire nextLink URL as-is
+
+**Prevention — correct pagination loop:**
+```python
+url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages"
+params = {"$top": 100, "$filter": "...", "$select": "..."}
+emails = []
+while url:
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    data = response.json()
+    emails.extend(data.get("value", []))
+    url = data.get("@odata.nextLink")  # None when no more pages
+    params = None  # nextLink already contains all query params
+```
+
+**Warning signs:** Emails received in the hour exceed 10 but only 10 appear in the digest; no error logs.
+
+**Phase:** Graph client implementation (`get_shared_mailbox_emails`).
+
+**Sources:** [Paging Microsoft Graph data](https://learn.microsoft.com/en-us/graph/paging), [List messages](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0)
+
+---
+
+### Pitfall M-2: Date Filter Format — ISO 8601 UTC, No Quotes in OData $filter
+
+**What goes wrong:** The current EWS code filters by `datetime_received__gte=since` — exchangelib handles all date formatting internally. Graph uses OData `$filter` with a specific datetime syntax. Quoting the datetime value (like a string), omitting the `Z` UTC suffix, or using local time without conversion will produce 400 errors or silently return wrong results.
+
+**Correct format:**
+```
+$filter=receivedDateTime ge 2025-03-12T14:00:00Z
+```
+
+**Rules:**
+1. DateTime values in `$filter` are NOT enclosed in single or double quotes
+2. Must use UTC (the `Z` suffix is required; Exchange stores everything in UTC)
+3. Local time without conversion will silently filter on wrong hours
+
+**Python code:**
+```python
+from datetime import timezone
+
+since_utc = since.astimezone(timezone.utc)
+filter_str = f"receivedDateTime ge {since_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+```
+
+**Warning signs:** API returns 400 with "Bad request"; or all messages are returned ignoring the time filter; or only messages after the wrong UTC-offset time appear.
+
+**Phase:** Graph client implementation — date filter construction.
+
+**Sources:** [Use the $filter query parameter](https://learn.microsoft.com/en-us/graph/filter-query-parameter), [ReceivedDateTime filter Q&A](https://learn.microsoft.com/en-us/answers/questions/768284/how-to-use-receiveddatetime-filter-in-graph-client)
+
+---
+
+### Pitfall M-3: $filter and $orderby Constraint — Properties Must Align
+
+**What goes wrong:** Combining `$filter` and `$orderby` in the same request has a strict rule: any property in `$orderby` must also appear in `$filter`, in the same order, before any non-`$orderby` filter properties. Violating this returns a 400 error:
+- Error code: `InefficientFilter`
+- Error message: `The restriction or sort order is too complex for this operation`
+
+**Current EWS equivalent:** `order_by('-datetime_received')` — exchangelib handles this constraint internally.
+
+**Safe pattern for InboxIQ (filter and order on same field):**
+```
+$filter=receivedDateTime ge 2025-03-12T00:00:00Z&$orderby=receivedDateTime desc
+```
+
+**Warning signs:** 400 error on list messages requests with `InefficientFilter` error code.
+
+**Phase:** Graph client implementation.
+
+**Sources:** [List messages — Optional query parameters](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0)
+
+---
+
+### Pitfall M-4: Body Content Is Nested — "body.content" Not a Flat String
+
+**What goes wrong:** The current `ews_client.py` accesses `item.body` directly from exchangelib, which returns a body object that converts to a string. In Graph, the message body is a nested object: `message["body"]["content"]`. Accessing `message["body"]` directly gives the dict, not the HTML string. The `body.contentType` will be `"html"` by default even for emails that were originally plain text but converted to HTML by Exchange.
+
+**Do not use `bodyPreview`:** `bodyPreview` is truncated to 255 characters. The current code generates a custom 200-character preview from the full body — that behavior must be replicated from the full `body.content`, not from `bodyPreview`.
+
+**Graph message body structure:**
+```json
+{
+  "body": {
+    "contentType": "html",
+    "content": "<html><body>Full email HTML here...</body></html>"
+  },
+  "bodyPreview": "First 255 characters truncated here..."
+}
+```
+
+**Migration mapping from `ews_client.py`:**
+- EWS: `str(item.body)` → Graph: `message["body"]["content"]`
+- EWS: `body_content[:200]` (custom preview) → Graph: still `body_content[:200]` generated from `message["body"]["content"]`
+
+**`body` is not returned by default in list calls:** When using `$select`, `body` must be explicitly listed: `$select=id,subject,sender,receivedDateTime,body,hasAttachments`
+
+**Warning signs:** `body_content` always empty; `body_preview` always exactly 255 chars ending mid-word.
+
+**Phase:** Graph client implementation — email parsing.
+
+**Sources:** [message resource type](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0)
+
+---
+
+### Pitfall M-5: Sender Field Is Nested — Not a Flat Object
+
+**What goes wrong:** EWS/exchangelib exposes `item.sender.name` and `item.sender.email_address` as direct string attributes. Graph nests these inside an `emailAddress` sub-object. Accessing `message["sender"]["name"]` (the flat EWS pattern) raises a `KeyError`.
+
+**Graph sender structure:**
+```json
+{
+  "sender": {
+    "emailAddress": {
+      "name": "M365 Message Center",
+      "address": "microsoft-noreply@microsoft.com"
+    }
+  }
+}
+```
+
+**Migration mapping from `ews_client.py`:**
+- EWS: `item.sender.name` → Graph: `message["sender"]["emailAddress"]["name"]`
+- EWS: `item.sender.email_address` → Graph: `message["sender"]["emailAddress"]["address"]`
+
+**Defensive access:**
+```python
+sender_info = message.get("sender", {}).get("emailAddress", {})
+sender_name = sender_info.get("name", "Unknown")
+sender_email = sender_info.get("address", "unknown@unknown.com")
+```
+
+**Warning signs:** All emails show "Unknown" sender after migration; `KeyError` on sender access.
+
+**Phase:** Graph client implementation — email parsing.
+
+**Sources:** [message resource type](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0)
+
+---
+
+### Pitfall M-6: Message ID Format Change — Graph IDs Are Not EWS IDs
+
+**What goes wrong:** Graph message IDs are base64-encoded REST format strings, completely incompatible with EWS `ItemId` format. If any code stores message IDs for deduplication across runs and then tries to use them after migration, all stored IDs become invalid lookups.
+
+**Risk assessment for InboxIQ:** InboxIQ uses date-based incremental filtering (`since` timestamp in state), not ID-based deduplication. Review `state.py` to confirm it stores no EWS message IDs. If the state file contains only timestamps, this pitfall does not apply and the state file survives the migration intact.
+
+**If the state file does contain EWS IDs:** The state file must be deleted or migrated before the first Graph-based run, otherwise comparison logic will fail silently.
+
+**Warning signs:** Duplicate emails in digest after migration; or emails from the transition window missing from the first Graph-based digest.
+
+**Prevention:** Audit `state.py` before migration to confirm only timestamps are stored.
+
+**Phase:** Pre-migration code audit.
+
+**Sources:** [Obtain immutable identifiers for Outlook resources](https://learn.microsoft.com/en-us/graph/outlook-immutable-id)
+
+---
+
+### Pitfall M-7: MSAL Token Cache Must Be Preserved Between Runs
+
+**What goes wrong:** If a new `ConfidentialClientApplication` instance is created on every Task Scheduler run (e.g., by calling `clear_cache()` unnecessarily), the MSAL token cache is discarded and a fresh token is fetched from Entra ID on every execution. This adds latency and generates unnecessary token requests.
+
+**Current behavior in `auth.py`:** The existing code correctly calls `acquire_token_silent()` before `acquire_token_for_client()`. This pattern must be preserved in the new auth module. The `ConfidentialClientApplication` instance must be reused within a process lifetime.
+
+**Additional opportunity:** `config.py` already defines `TOKEN_CACHE_FILE` but `auth.py` does not wire it up to MSAL's `SerializableTokenCache`. For a Windows Task Scheduler daemon that creates a new process on each run, persisting the token to disk means tokens survive process restarts and the 1-hour token lifetime is not wasted.
+
+**Warning signs:** Logs show "No cached token, acquiring new token..." on every single hourly run.
+
+**Phase:** Auth module update — token cache handling.
+
+**Sources:** [Acquire and cache tokens with MSAL](https://learn.microsoft.com/en-us/entra/identity-platform/msal-acquire-cache-tokens), [Refreshing MSAL access tokens using Token Cache](https://www.beringer.net/beringerblog/refreshing-msal-access-tokens-using-token-cache/)
+
+---
+
+## Minor Pitfalls (will cause annoyance)
+
+These cause friction during development or produce confusing errors that waste debugging time without breaking core functionality.
+
+---
+
+### Pitfall Mi-1: HTTP 429 Throttling — No Automatic Retry in `requests`
+
+**What goes wrong:** The Graph API rate-limits with HTTP 429 and a `Retry-After` header. The `requests` library does not handle this automatically. During development with rapid test runs (e.g., calling list messages 20 times in 5 minutes), 429 responses will appear and the code will crash unless handled explicitly.
+
+**For InboxIQ in production:** With hourly execution and low email volume, throttling is unlikely in production. However, during development and test iteration, repeated runs against the live mailbox will hit limits.
+
+**Prevention — simple retry wrapper:**
+```python
+import time
+
+def graph_request(method, url, headers, **kwargs):
+    for attempt in range(3):
+        resp = requests.request(method, url, headers=headers, **kwargs)
+        if resp.status_code == 429:
+            wait = int(resp.headers.get("Retry-After", 10))
+            time.sleep(wait)
+            continue
+        return resp
+    raise RuntimeError(f"Graph API throttled after retries: {url}")
+```
+
+**Sources:** [Microsoft Graph throttling guidance](https://learn.microsoft.com/en-us/graph/throttling)
+
+---
+
+### Pitfall Mi-2: `$select` Must Explicitly Include "body" — List Response Omits It by Default
+
+**What goes wrong:** Calling list messages without `$select` returns a default field set that includes most fields but may omit `body` for performance on large responses. When testing in Graph Explorer, body appears because Graph Explorer individually fetches each message. In a list call without explicit `$select`, body can be absent.
+
+**Prevention:** Always include `body` in `$select` when listing messages:
+```
+$select=id,subject,sender,from,receivedDateTime,body,hasAttachments,isRead
+```
+
+**Note:** Including `body` in a list call with large `$top` on a high-volume mailbox can trigger HTTP 504 Gateway Timeout. If this occurs, fetch `body` per-message via individual `GET /messages/{id}` calls instead of including it in the list response.
+
+**Sources:** [List messages](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0)
+
+---
+
+### Pitfall Mi-3: saveToSentItems Behavior — Default May Not Match EWS send_and_save()
+
+**What goes wrong:** The current code uses exchangelib's `message.send_and_save()` which saves a copy to Sent Items. In Graph, `sendMail` has a `saveToSentItems` boolean (defaults to `true`). The question is: which Sent Items folder receives the copy?
+
+**Behavior matrix:**
+- Calling `POST /users/{sharedMailbox}/sendMail` → saved to shared mailbox Sent Items (desired)
+- Calling `POST /users/{serviceAccount}/sendMail` with `from` pointing elsewhere → saved to service account Sent Items (not desired)
+
+**For InboxIQ:** Use the shared mailbox address in the URL path (not a separate service account address) and set `saveToSentItems: true`. This replicates current EWS behavior.
+
+**Warning signs:** Sent items accumulate in unexpected mailboxes; audit trail gaps.
+
+**Sources:** [Send Outlook messages from another user](https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user)
+
+---
+
+### Pitfall Mi-4: Admin Consent Propagation Delay
+
+**What goes wrong:** After an IT admin grants application permission consent in Entra ID, the permissions are not immediately effective. Calling Graph immediately after consent may still return 403.
+
+**Observed delays:**
+- Entra ID permission consent: typically 1–5 minutes, occasionally up to 15 minutes
+- ApplicationAccessPolicy (mailbox restriction): up to 24 hours
+- Exchange RBAC for Applications: 30 minutes to 2 hours for active apps, 30 minutes for idle apps
+
+**Prevention:** Do not run integration tests immediately after consent. Build in a wait period or retry loop during testing. Document expected wait times in the deployment runbook so IT/security staff understand why testing cannot happen instantly after they approve.
+
+**Sources:** [RBAC for Applications — Limitations section](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac)
+
+---
+
+### Pitfall Mi-5: hasAttachments Is True for Inline Images
+
+**What goes wrong:** `has_attachments` in EWS corresponds to `hasAttachments` in Graph. However, in Graph `hasAttachments` is `true` when the message contains inline images embedded in the HTML body — not just formal file attachments. For InboxIQ which uses `has_attachments` only as metadata (not to download attachments), this is a minor behavioral difference. It will not cause failures but will show `has_attachments: True` on more messages than EWS did.
+
+**Action:** Document the behavioral difference in a comment; no code change required.
+
+**Sources:** [message resource type](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0)
+
+---
+
+## Deployment/Operations Pitfalls
+
+These affect the Windows Task Scheduler daemon behavior and production reliability at Marsh McLennan.
+
+---
+
+### Pitfall D-1: Token Cache Lost on Every Process Exit (Windows Task Scheduler)
+
+**What goes wrong:** The MSAL `ConfidentialClientApplication` object and its in-memory token cache are destroyed when the Python process exits after each hourly Task Scheduler run. The next run starts a fresh process with no cache and acquires a new token from Entra ID.
+
+**This is functional but wasteful.** Graph tokens are valid for 3600 seconds (1 hour). A new token acquisition on every hourly run means the token is always fresh but also means a round-trip to `login.microsoftonline.com` adds ~200–500ms to every run.
+
+**Opportunity:** `config.py` already defines `TOKEN_CACHE_FILE = Path(...) / ".token_cache.json"` but `auth.py` does not use it. Wiring up `SerializableTokenCache` to this file makes the token persist between process restarts. MSAL will automatically refresh when the token nears expiry.
+
+**Risk if ignored:** Not a bug. Adds minor latency. Low priority.
+
+**Sources:** [MSAL token caching documentation](https://learn.microsoft.com/en-us/entra/identity-platform/msal-acquire-cache-tokens)
+
+---
+
+### Pitfall D-2: Environment Variable Changes Must Be Coordinated With Task Scheduler
+
+**What goes wrong:** The current `config.py` references `EWS_SERVER` which is meaningless for Graph. If the `.env` file is updated to add Graph-specific variables while EWS variables remain, the `Config.validate()` method may not catch misconfiguration. More critically: if Windows Task Scheduler passes environment variables directly in the task definition XML (not from `.env`), those must also be updated separately.
+
+**Variables to remove:** `EWS_SERVER`
+
+**Variables to update scope of:**
+- `USER_EMAIL` — in EWS this was the impersonation identity; in Graph it becomes the send-from account for the URL path. Confirm this mapping is still correct for the production config.
+
+**Variables to add (if Graph-specific config is needed):** Graph base URL (can be hardcoded as constant rather than env var).
+
+**Prevention:** Audit all `config.py` references during migration. Update `Config.validate()` to require any new Graph-specific env vars. Update `.env.example`. Check the Task Scheduler task definition XML on the Windows Server for hardcoded env vars.
+
+**Phase:** Config module update.
+
+---
+
+### Pitfall D-3: Enterprise Proxy May Block `login.microsoftonline.com`
+
+**What goes wrong:** MSAL token acquisition connects to `https://login.microsoftonline.com`. Graph API calls connect to `https://graph.microsoft.com`. At Marsh McLennan (mmc.com), outbound HTTPS may require proxy configuration. The `requests` library respects `HTTPS_PROXY` environment variables and `proxies` parameter. MSAL also uses `requests` internally for token acquisition.
+
+**Pattern:** Works on developer workstation (direct internet or different proxy) but fails on Windows Server deployment with "connection timeout" or "SSL certificate verification failed" errors.
+
+**Prevention:** Test the complete auth + Graph call chain on the actual Windows Server deployment environment before declaring the migration ready. Verify both `login.microsoftonline.com` and `graph.microsoft.com` are reachable. If proxy is required, add proxy configuration to both the `msal.ConfidentialClientApplication` and the `requests.get()` calls.
+
+---
+
+### Pitfall D-4: Test Suite Will Silently Pass While Testing Old Behavior
+
+**What goes wrong:** The existing 167 tests mock exchangelib objects (`Account`, `Message`, `Mailbox`, `HTMLBody`). After migrating to `graph_client.py`, these mocks no longer test the actual Graph data parsing code. Tests continue to pass because they are testing the old mock behavior — not the new Graph JSON parsing. A developer can break the entire `graph_client.py` without a single test failing.
+
+**What needs updating in the test suite:**
+- All `EWSClient` mocks → `GraphClient` mocks using Graph-shaped JSON dicts
+- exchangelib object attribute access patterns (`.sender.name`) → Graph nested JSON access (`["sender"]["emailAddress"]["name"]`)
+- `EWSClientError` → `GraphClientError` (new exception class)
+- New pagination behavior tests: mock a two-page response where the first page includes `@odata.nextLink`
+- `conftest.py` fixtures that create `Email` objects from EWS data → fixtures from Graph JSON
+
+**Prevention:** As part of migration, update test fixtures to use Graph-shaped JSON before submitting `graph_client.py` for review. A failing test suite with new fixtures is safer than a passing test suite with wrong fixtures.
+
+**Phase:** Test suite update (must be done before or simultaneously with `graph_client.py` implementation).
+
+---
+
+### Pitfall D-5: No Rollback Plan After Production Cutover
+
+**What goes wrong:** Once `ews_client.py` is replaced by `graph_client.py` in the Task Scheduler deployment, rolling back requires restoring old files AND restoring the EWS scope in `.env`. If the rollback procedure is not pre-documented, an incident recovery under time pressure is likely to fail.
+
+**EWS deprecation timeline:** EWS for Exchange Online is scheduled to be disabled by default in August 2026 and shut down in 2027. This gives time to migrate carefully, but the production cutover should have a documented rollback window.
 
 **Prevention:**
-
-- Use weighted scoring (not strict Boolean logic)
-- Default to INCLUDING email in digest when uncertain (conservative = include, not exclude)
-- Log detection confidence scores to identify threshold issues
-- Weekly review: "Are admins reporting missed updates?"
-
-**Phase to address:** Phase 1 (Detection Strategy) — Balance precision/recall during testing.
-
----
-
-### Pitfall 7: LLM Cost Explosion with Dual Summarization
-
-**What goes wrong:**
-
-The current system uses Azure OpenAI to summarize emails once. Adding major updates digest doubles LLM usage: one summarization for regular digest, another for major updates digest. Costs increase unexpectedly. If major updates are frequent, LLM API rate limits are hit.
-
-**Why it happens:**
-
-Incremental feature addition doesn't account for compounding costs. Each major update email is now processed twice: once for classification ("Is this a major update?") and again for summarization ("Extract deadline/actions"). Azure OpenAI has token-based pricing and rate limits.
-
-**Prevention:**
-
-- Estimate token usage: (emails/day) × (2 LLM calls/email) × (tokens/call) × ($/1K tokens)
-- Consider shared LLM call: Single prompt that classifies AND extracts structured data
-- Implement caching: If same email seen again (rare but possible), use cached result
-- Monitor Azure OpenAI usage dashboard for cost spikes
-
-**Phase to address:** Phase 3 (Major Updates Summarization) — Budget for increased costs before launch.
-
----
-
-### Pitfall 8: HTML Email Rendering Differences Between Digest Types
-
-**What goes wrong:**
-
-The existing HTML email formatting is optimized for the regular digest (executive summary, categories, individual emails). The major updates digest has different information architecture (deadlines, action items, impact levels). Applying the same HTML template causes poor rendering: deadlines buried in text, action items not prominent.
-
-**Why it happens:**
-
-Reusing the existing `format_summary_html()` method saves time but doesn't account for different content types. Major updates need different visual hierarchy.
-
-**Prevention:**
-
-- Create separate HTML formatting method: `format_major_updates_html()`
-- Use visual hierarchy: Deadlines in red boxes, action items in blue boxes, impact level badges
-- Mobile-responsive design: Admins may check digest on phone
-- Test in multiple email clients: Outlook, Gmail, Apple Mail
-
-**Phase to address:** Phase 3 (Major Updates Summarization) — Design custom HTML template.
-
----
-
-### Pitfall 9: Empty Major Updates Digest Noise
-
-**What goes wrong:**
-
-If no major updates detected in an hourly run, the system sends an empty major updates digest ("No major updates today"). Admins receive this email every hour, 24 times/day, creating noise.
-
-**Why it happens:**
-
-Naive implementation: "Always send both digests" without checking if there's content to send.
-
-**Prevention:**
-
-- Only send major updates digest if `len(major_update_emails) > 0`
-- Log: "No major updates detected, skipping major updates digest"
-- Consider daily rollup: Only send major updates digest once/day if any detected in last 24 hours
-
-**Phase to address:** Phase 5 (Dual-Digest Orchestration) — Add conditional sending logic.
-
----
-
-## Minor Pitfalls
-
-### Pitfall 10: Log File Size Explosion with Dual-Digest Verbosity
-
-**What goes wrong:**
-
-Adding a second digest doubles log output. Over time, log files grow large, consuming disk space and making debugging difficult.
-
-**Prevention:**
-
-- Implement log rotation: Keep last 30 days only
-- Use structured logging (JSON) for easier parsing
-- Different log levels for development (DEBUG) vs production (INFO)
-
-**Phase to address:** Phase 5 (Dual-Digest Orchestration).
-
----
-
-### Pitfall 11: Git State File Conflicts in Version Control
-
-**What goes wrong:**
-
-Developers working on branches accidentally commit `.state.json` to git, causing merge conflicts and exposing production state.
-
-**Prevention:**
-
-- Add `.state.json` to `.gitignore`
-- Use separate state files for dev/prod: `.state.dev.json`, `.state.prod.json`
-- Document in README: "Never commit state files"
-
-**Phase to address:** Phase 0 (Setup) — Ensure .gitignore correct.
+- Keep `ews_client.py` in a git feature branch (do not delete from git until Graph has been stable in production for 2+ weeks)
+- Consider a dual-mode validation period: run Graph client in parallel with EWS for 2-3 hourly cycles, compare email counts, then cut over
+- Document exact rollback steps: which files to restore, which env vars to change, which Task Scheduler settings to revert
+- Tag the last working EWS commit explicitly: `git tag pre-graph-migration`
 
 ---
 
 ## Phase-Specific Warnings
 
-| Phase | Title | Likely Pitfalls | Mitigation |
-|-------|-------|-----------------|------------|
-| 1 | Detection Strategy | Pitfall #1 (brittle patterns), #6 (false negatives) | Multi-signal detection, confidence logging, test corpus |
-| 2 | State Management | Pitfall #2 (state corruption) | Separate state per digest, atomic updates, validation |
-| 3 | Major Updates Summarization | Pitfall #3 (LLM reliability), #7 (cost explosion), #8 (HTML rendering) | Structured outputs, prompt examples, validation, cost estimates |
-| 4 | Recipient Configuration | Pitfall #4 (config sprawl) | Structured config, env-based routing, validation |
-| 5 | Dual-Digest Orchestration | Pitfall #5 (failure cascade), #9 (empty digest noise), #10 (log size) | Error isolation, conditional sending, log rotation |
-| 6 | Testing & Validation | All pitfalls require testing | Mock EWS, test mailbox, dry-run mode, corpus testing |
-
----
-
-## Testing Challenges
-
-### Challenge 1: Testing Classification Without Live Mailbox
-
-**Problem:** Can't test Message Center email detection without real Message Center emails in the mailbox.
-
-**Solution:**
-
-1. **Test corpus approach**:
-   - Request historical Message Center emails from IT admin
-   - Save as `.eml` files in `tests/fixtures/message_center/`
-   - Load from filesystem for testing
-   - Include both major updates and regular announcements
-
-2. **Mock EWS responses**:
-   ```python
-   @pytest.fixture
-   def mock_ews_client(mocker):
-       mock = mocker.patch('src.ews_client.EWSClient')
-       mock.get_shared_mailbox_emails.return_value = [
-           # Load test emails from fixtures
-       ]
-       return mock
-   ```
-
-3. **Detection validation script**:
-   - Command: `python -m tests.validate_detection --corpus tests/fixtures/`
-   - Outputs: Detection accuracy, false positive rate, false negative rate
-   - Run in CI/CD pipeline
-
-**Phase:** Phase 6 (Testing & Validation).
-
----
-
-### Challenge 2: Testing LLM Extraction Reliability
-
-**Problem:** LLM responses are non-deterministic. Same email may produce different extractions on different runs.
-
-**Solution:**
-
-1. **Use temperature=0 in tests** (deterministic mode)
-2. **Validate schema compliance, not exact values**:
-   ```python
-   def test_extraction_schema(major_update_email):
-       result = llm_summarizer.extract_major_update_data(major_update_email)
-       assert "deadline" in result
-       assert result["deadline"] == "NONE" or is_valid_date(result["deadline"])
-       assert result["impact_level"] in ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
-       assert isinstance(result["action_required"], bool)
-   ```
-3. **Regression testing**: Save known-good extractions, test new code produces similar results
-
-**Phase:** Phase 6 (Testing & Validation).
-
----
-
-### Challenge 3: Testing Dual-Digest State Management
-
-**Problem:** State management bugs only appear across multiple runs, hard to test in unit tests.
-
-**Solution:**
-
-1. **Integration tests that simulate multiple runs**:
-   ```python
-   def test_state_persistence_across_runs():
-       # Run 1: Process emails, update state
-       state1 = StateManager()
-       # ... process ...
-       state1.set_last_run()
-
-       # Run 2: Should only fetch new emails
-       state2 = StateManager()
-       since = state2.get_last_run()
-       assert since is not None
-   ```
-
-2. **Failure injection tests**:
-   ```python
-   def test_state_not_updated_on_failure():
-       state = StateManager()
-       state.set_last_run("2026-02-23T10:00:00Z")
-
-       # Simulate failure
-       with pytest.raises(Exception):
-           # ... operation that should fail ...
-
-       # State should be unchanged
-       assert state.get_last_run() == "2026-02-23T10:00:00Z"
-   ```
-
-**Phase:** Phase 6 (Testing & Validation).
-
----
-
-## Deployment Pitfalls
-
-### Risk 1: EWS Deprecation Timeline Pressure
-
-**Critical context:** Exchange Web Services (EWS) is being deprecated by Microsoft. EWS will be disabled by default in Exchange Online tenants in **August 2026**, with complete shutdown in **2027**.
-
-**Impact:** This project uses `exchangelib` which relies on EWS. Adding major updates digest feature is valuable but short-lived. Migration to Microsoft Graph API will be required within 12-18 months.
-
-**Evidence:**
-
-- "EWS will be disabled by default (EWSEnabled=False) in Exchange Online tenants in August 2026" ([Exchange Online EWS, Your Time is Almost Up](https://techcommunity.microsoft.com/blog/exchange/exchange-online-ews-your-time-is-almost-up/4492361))
-- "Microsoft's EWS Shutdown in 2026" ([Exchange Web Services (EWS) Is Dying](https://medium.com/@Totally.Tech/exchange-web-services-ews-is-dying-the-complete-admin-guide-to-surviving-microsofts-ews-shutdown-1ad941e39946))
-
-**Mitigation:**
-
-- Document EWS deprecation timeline in README
-- Plan Graph API migration after v1.0 major updates digest ships
-- Consider: Is dual-digest worth building on deprecated API?
-- Alternative: Build on Graph API from start (blocks v1.0 delivery but future-proof)
-
-**Decision required:** Proceed with EWS knowing migration needed, or delay feature for Graph API rewrite?
-
----
-
-### Risk 2: Production Cutover Rollback Strategy
-
-**Problem:** If major updates digest goes wrong in production (wrong recipients, bad LLM output, state corruption), how to rollback?
-
-**Solution:**
-
-1. **Feature flag approach**:
-   ```python
-   # .env
-   ENABLE_MAJOR_UPDATES_DIGEST=false  # Default off
-
-   # In code
-   if Config.ENABLE_MAJOR_UPDATES_DIGEST:
-       execute_major_updates_digest()
-   ```
-
-2. **Gradual rollout**:
-   - Week 1: Enable for single admin recipient (test in prod)
-   - Week 2: Enable for IT admin team (5 people)
-   - Week 3: Enable for all major updates recipients
-
-3. **Rollback plan**:
-   - Disable feature flag
-   - Redeploy previous git commit
-   - Clear major updates state: `python -m src.main --clear-state`
-
-**Phase:** Phase 7 (Production Deployment).
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Auth module update | C-1: Wrong scope; C-5: Application vs Delegated permission type | Change scope to `graph.microsoft.com/.default`; verify Application permissions in Entra ID portal |
+| App registration / permissions setup | C-2: Tenant-wide access by default | Coordinate ApplicationAccessPolicy or Exchange RBAC with IT admin before any testing |
+| `graph_client.py` — read emails | M-1: Pagination; M-2: Date filter format; M-3: filter+orderby rule; M-4: body structure; M-5: sender structure | Full pagination loop; UTC ISO 8601 filter; explicit `$select` including `body`; nested JSON access |
+| `graph_client.py` — send email | C-3: Wrong URL; C-4: `from` field; Mi-3: saveToSentItems | Use `/users/{id}/sendMail`; set `from` field from `Config.get_send_from()`; set `saveToSentItems: true` |
+| Config module update | D-2: Env var coordination | Remove `EWS_SERVER`; update Task Scheduler task definition; update `.env.example` |
+| Test suite update | D-4: Stale mocks | Replace exchangelib mocks with Graph JSON fixtures; add pagination test |
+| Infrastructure setup | Mi-4: Propagation delay | Build wait time into deployment plan after IT grants permissions |
+| Deployment to Windows Server | D-3: Enterprise proxy | Test auth + Graph calls on deployment server before go-live |
+| Production cutover | D-5: Rollback plan; D-1: Token cache | Document rollback steps; tag pre-migration commit; consider dual-mode validation period |
 
 ---
 
 ## Sources
 
-### Email Detection & Classification
-- [How Does AI Email Security Work in 2026 — and Why Traditional Filters Fail?](https://strongestlayer.com/blog/ai-email-security-2025-vs-traditional-filters)
-- [Microsoft Exchange Spam Filtering Update 2026 Explained](https://www.getmailbird.com/microsoft-exchange-spam-filtering-update/)
-- [How Machine Learning Spam Filters Analyze Your Email 2026](https://www.getmailbird.com/how-machine-learning-spam-filters-analyze-email/)
-- [Classification: Accuracy, recall, precision, and related metrics](https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall)
-
-### Microsoft 365 Message Center
-- [MC1189665 - Microsoft 365 admin center: Organizational Messages](https://mc.merill.net/message/MC1189665)
-- [Message center in the Microsoft 365 admin center](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/message-center?view=o365-worldwide)
-
-### LLM Structured Data Extraction
-- [LLMStructBench: Benchmarking Large Language Model Structured Data Extraction](https://www.arxiv.org/pdf/2602.14743)
-- [Diagnosing Structural Failures in LLM-Based Evidence Extraction](https://arxiv.org/abs/2602.10881)
-- [Understanding LLM Limitations: Counting and Parsing Structured Data](https://docs.dust.tt/docs/understanding-llm-limitations-counting-and-parsing-structured-data)
-- [Structured Outputs in the API | OpenAI](https://openai.com/index/introducing-structured-outputs-in-the-api/)
-- [How to use structured outputs with Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/structured-outputs?view=foundry-classic)
-- [Azure Open AI Responses API with structured outputs - JSON schema suddenly no longer accepted](https://learn.microsoft.com/en-us/answers/questions/5578889/azure-open-ai-responses-api-with-structured-output)
-- [How to Set Up Prompt Engineering Best Practices for Azure OpenAI GPT-4](https://oneuptime.com/blog/post/2026-02-16-how-to-set-up-prompt-engineering-best-practices-for-azure-openai-gpt-4/view)
-
-### State Management & Data Pipelines
-- [Data pipeline state management: An underappreciated challenge](https://www.fivetran.com/blog/data-pipeline-state-management-an-underappreciated-challenge)
-- [Advanced state management for incremental loading](https://dlthub.com/docs/general-usage/incremental/advanced-state)
-- [SyncState | Microsoft Learn](https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/syncstate-ex15websvcsotherref)
-
-### Email Testing & Recipient Configuration
-- [Python Test Email: Tutorial with Code Snippets [2026]](https://mailtrap.io/blog/python-test-email/)
-- [Email Flow Validation in Microservices](https://www.devopsroles.com/email-flow-validation-microservices-devops)
-- [21 Best Email Testing Tools in 2026](https://mailtrap.io/blog/email-testing-tools/)
-- [Jadu Forms: Set Email Recipients by Environment](https://it.umn.edu/services-technologies/how-tos/jadu-forms-set-email-recipients)
-
-### Scheduled Task Error Handling
-- [Error handling in scheduled tasks](https://www.advscheduler.com/error-handling-in-scheduled-tasks)
-- [Windows Task Scheduler Error 0x41301: Complete Fix Guide and 2026 Best Practices](https://copyprogramming.com/howto/windows-task-schduler-keep-showing-0x41301)
-- [Troubleshooting Windows Task Scheduler](https://www.xplg.com/windows-server-windows-task-scheduler/)
-- [Exception handling in ScheduledExecutorService](https://www.dontpanicblog.co.uk/2021/05/15/exception-handling-in-scheduledexecutorservice/)
-
-### EWS Deprecation Timeline
-- [Exchange Online EWS, Your Time is Almost Up](https://techcommunity.microsoft.com/blog/exchange/exchange-online-ews-your-time-is-almost-up/4492361)
-- [Microsoft to Kill Off Exchange Web Services in October 2026](https://petri.com/microsoft-exchange-web-services-2026/)
-- [Exchange Web Services (EWS) Is Dying: The Complete Admin Guide](https://medium.com/@Totally.Tech/exchange-web-services-ews-is-dying-the-complete-admin-guide-to-surviving-microsofts-ews-shutdown-1ad941e39946)
+- [Authentication differences EWS vs Microsoft Graph](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-authentication) — HIGH confidence, official docs
+- [Migrate EWS apps to Microsoft Graph overview](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-overview) — HIGH confidence, official docs
+- [EWS to Microsoft Graph API mappings](https://learn.microsoft.com/en-us/graph/migrate-exchange-web-services-api-mapping) — HIGH confidence, official docs
+- [user: sendMail API reference](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0) — HIGH confidence, official docs
+- [Send Outlook messages from another user](https://learn.microsoft.com/en-us/graph/outlook-send-mail-from-other-user) — HIGH confidence, official docs
+- [List messages API reference](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0) — HIGH confidence, official docs
+- [message resource type (fields reference)](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0) — HIGH confidence, official docs
+- [Paging Microsoft Graph data](https://learn.microsoft.com/en-us/graph/paging) — HIGH confidence, official docs
+- [Use the $filter query parameter](https://learn.microsoft.com/en-us/graph/filter-query-parameter) — HIGH confidence, official docs
+- [Microsoft Graph throttling guidance](https://learn.microsoft.com/en-us/graph/throttling) — HIGH confidence, official docs
+- [RBAC for Applications in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) — HIGH confidence, official Exchange docs (updated 2025-11-25)
+- [Obtain immutable identifiers for Outlook resources](https://learn.microsoft.com/en-us/graph/outlook-immutable-id) — HIGH confidence, official docs
+- [Acquire and cache tokens with MSAL](https://learn.microsoft.com/en-us/entra/identity-platform/msal-acquire-cache-tokens) — HIGH confidence, official docs
+- [Secure Access to Mailboxes via Graph — Brian Reid](https://c7solutions.com/2024/09/secure-access-to-mailboxes-via-graph) — MEDIUM confidence, authoritative community source
+- [Microsoft Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference) — HIGH confidence, official docs
+- [ReceivedDateTime filter usage Q&A](https://learn.microsoft.com/en-us/answers/questions/768284/how-to-use-receiveddatetime-filter-in-graph-client) — MEDIUM confidence, Microsoft Q&A

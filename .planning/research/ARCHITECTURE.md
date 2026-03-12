@@ -1,857 +1,643 @@
-# Architecture Patterns: Major Update Detection Integration
+# Architecture Research: Graph API Migration
 
-**Domain:** Email summarization with classification and multiple digest types
-**Researched:** 2026-02-23
-**Confidence:** HIGH
+**Project:** InboxIQ — EWS to Microsoft Graph API Migration
+**Researched:** 2026-03-12
+**Confidence:** HIGH (all claims verified against official Microsoft documentation)
 
-## Executive Summary
+---
 
-The major update detection feature requires classification-first architecture where emails are categorized immediately after fetch and before summarization. This enables clean separation of digest types while maintaining the existing layered pipeline. Key integration points: new EmailClassifier module between fetch and summarize, shared configuration with separate recipient lists, unified state management with digest type tracking, and sequential orchestration of two independent digest workflows in main.py.
+## Current Architecture (What Changes)
 
-## Recommended Architecture
-
-### High-Level Data Flow
+### Component Inventory
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         main.py Orchestrator                        │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │                           │
-         ┌──────────▼────────────┐   ┌─────────▼──────────┐
-         │  Regular Digest Flow  │   │ Major Update Flow  │
-         └──────────┬────────────┘   └─────────┬──────────┘
-                    │                           │
-    ┌───────────────┴──────────────┐           │
-    │                              │           │
-┌───▼────┐  ┌──────────┐  ┌───────▼──┐  ┌─────▼─────┐
-│  Auth  │─>│ Fetch    │─>│ Classify │─>│ Split     │
-└────────┘  │ (EWS)    │  │ (New)    │  │ (New)     │
-            └──────────┘  └──────────┘  └───┬───┬───┘
-                                            │   │
-                        ┌───────────────────┘   └──────────────┐
-                        │                                       │
-                   ┌────▼─────┐                        ┌───────▼──────┐
-                   │ Regular  │                        │ Major Update │
-                   │Summarize │                        │  Summarize   │
-                   └────┬─────┘                        └───────┬──────┘
-                        │                                      │
-                   ┌────▼─────┐                        ┌───────▼──────┐
-                   │  Format  │                        │   Format     │
-                   │  (HTML)  │                        │  (HTML+)     │
-                   └────┬─────┘                        └───────┬──────┘
-                        │                                      │
-                   ┌────▼─────┐                        ┌───────▼──────┐
-                   │   Send   │                        │    Send      │
-                   │ (EWS)    │                        │   (EWS)      │
-                   └──────────┘                        └──────────────┘
+src/auth.py          CHANGE   — scope switch, new return type (access token only)
+src/ews_client.py    REPLACE  — full replacement with graph_client.py
+src/main.py          CHANGE   — import swap + error type rename
+src/config.py        CHANGE   — remove EWS_SERVER, no new required vars
+src/classifier.py    UNTOUCHED
+src/summarizer.py    UNTOUCHED
+src/llm_summarizer.py UNTOUCHED
+src/action_extractor.py UNTOUCHED
+src/email_builder.py UNTOUCHED
+src/state.py         UNTOUCHED
+src/extractor.py     UNTOUCHED
 ```
 
-## Component Design
+### Current Data Flow
 
-### 1. Email Classification (NEW)
+```
+auth.py           → get_ews_credentials() → OAuth2Credentials (exchangelib object)
+ews_client.py     → EWSClient(credentials)
+                  → get_shared_mailbox_emails(mailbox, since, max_emails) → list[Email]
+                  → send_email(to, subject, body_html, cc, bcc) → None
+main.py           → EWSAuthenticator + EWSClient
+                  → catch AuthenticationError, EWSClientError
+config.py         → EWS_SERVER env var used by EWSClient
+```
 
-**Module:** `src/classifier.py`
+### The Email Dataclass (Defined in ews_client.py, Used Everywhere)
 
-**Purpose:** Detect and classify Message Center major update emails
-
-**Integration Point:** Between fetch and summarization (after EWSClient.get_shared_mailbox_emails, before EmailSummarizer.summarize_emails)
-
-**Rationale:**
-- Classification must happen immediately after fetch to split email streams
-- Early classification prevents major updates from entering regular summarization
-- Enables clean separation of digest types with different LLM prompts
-- Follows industry pattern: "After the fetch stage... classification happening before the summarization step" ([source](https://dev.to/malok/building-an-ai-email-assistant-that-prioritizes-sorts-and-summarizes-with-llms-34m8))
-
-**Implementation:**
+The `Email` dataclass is the central contract consumed by classifier, summarizer, extractor,
+email_builder, conftest fixtures, and all tests. It must remain identical after migration.
 
 ```python
-from dataclasses import dataclass
-from typing import Optional
-from .ews_client import Email
-
 @dataclass
-class ClassificationResult:
-    """Result of email classification."""
-    is_major_update: bool
-    confidence: float
-    detected_tags: list[str]
-    message_id: Optional[str] = None
-    service: Optional[str] = None
-    impact_level: Optional[str] = None
-    deadline: Optional[str] = None
-
-class EmailClassifier:
-    """
-    Classifies emails to detect Microsoft Message Center major updates.
-    Uses rule-based detection with optional LLM enhancement.
-    """
-
-    # Major update detection patterns
-    MAJOR_UPDATE_KEYWORDS = [
-        "major update", "admin impact", "user impact",
-        "retirement", "action required", "deprecation"
-    ]
-
-    SENDER_PATTERNS = [
-        "o365mc@microsoft.com",
-        "microsoft 365 message center",
-        "@microsoftonline.com"
-    ]
-
-    def __init__(self, use_llm: bool = False):
-        """
-        Initialize classifier.
-
-        Args:
-            use_llm: Whether to use LLM for enhanced classification
-        """
-        self._use_llm = use_llm
-        self._llm_classifier = None
-
-        if self._use_llm:
-            try:
-                from .llm_classifier import LLMEmailClassifier
-                self._llm_classifier = LLMEmailClassifier()
-            except Exception as e:
-                logger.warning(f"LLM classification unavailable: {e}")
-                self._use_llm = False
-
-    def classify(self, email: Email) -> ClassificationResult:
-        """
-        Classify a single email.
-
-        Args:
-            email: Email to classify
-
-        Returns:
-            ClassificationResult with classification details
-        """
-        # Rule-based classification (always runs)
-        is_major = self._is_major_update_rule_based(email)
-        tags = self._extract_tags(email)
-
-        # LLM enhancement (optional)
-        if self._use_llm and self._llm_classifier:
-            llm_result = self._llm_classifier.classify(email)
-            is_major = is_major or llm_result.is_major_update
-            tags.extend(llm_result.detected_tags)
-
-        return ClassificationResult(
-            is_major_update=is_major,
-            confidence=0.95 if is_major else 0.90,
-            detected_tags=list(set(tags)),
-            message_id=self._extract_message_id(email),
-            service=self._extract_service(email),
-            impact_level=self._extract_impact_level(email),
-            deadline=self._extract_deadline(email)
-        )
-
-    def classify_batch(self, emails: list[Email]) -> tuple[list[Email], list[Email]]:
-        """
-        Classify emails and split into regular vs major update streams.
-
-        Args:
-            emails: List of emails to classify
-
-        Returns:
-            Tuple of (regular_emails, major_update_emails)
-        """
-        regular = []
-        major_updates = []
-
-        for email in emails:
-            result = self.classify(email)
-            if result.is_major_update:
-                major_updates.append(email)
-            else:
-                regular.append(email)
-
-        return regular, major_updates
-
-    def _is_major_update_rule_based(self, email: Email) -> bool:
-        """Rule-based detection using sender and keywords."""
-        # Check sender
-        sender_match = any(
-            pattern.lower() in email.sender_email.lower()
-            for pattern in self.SENDER_PATTERNS
-        )
-
-        # Check subject and body for keywords
-        content = f"{email.subject} {email.body_content}".lower()
-        keyword_match = any(
-            keyword.lower() in content
-            for keyword in self.MAJOR_UPDATE_KEYWORDS
-        )
-
-        return sender_match and keyword_match
-
-    def _extract_tags(self, email: Email) -> list[str]:
-        """Extract classification tags from email content."""
-        tags = []
-        content = f"{email.subject} {email.body_content}".lower()
-
-        if "major update" in content:
-            tags.append("MAJOR_UPDATE")
-        if "admin impact" in content:
-            tags.append("ADMIN_IMPACT")
-        if "user impact" in content:
-            tags.append("USER_IMPACT")
-        if "retirement" in content or "deprecation" in content:
-            tags.append("RETIREMENT")
-        if "action required" in content:
-            tags.append("ACTION_REQUIRED")
-
-        return tags
+class Email:
+    id: str
+    subject: str
+    sender_name: str
+    sender_email: str
+    received_datetime: datetime     # timezone-aware, UTC
+    body_preview: str
+    body_content: str               # HTML stripped to plain text
+    has_attachments: bool
+    classification: Optional[Any] = None
 ```
 
-**Decision:** New module vs extending ews_client.py
-- **Chosen:** New module `classifier.py`
-- **Rationale:** Single Responsibility Principle — EWSClient handles EWS operations, classifier handles classification logic. Enables future enhancement (ML models, custom rules) without touching EWS code. Aligns with existing pattern where summarizer.py is separate from fetch logic.
+The `Email` dataclass must move to a shared location (or remain in `graph_client.py`) so that
+`classifier.py`, `conftest.py`, and all test files that import `from src.ews_client import Email`
+can be updated to a single import path change.
 
-**Sources:**
-- [Email Classification Pipeline Architecture](https://github.com/shxntanu/email-classifier)
-- [AI Email Assistant Architecture](https://dev.to/malok/building-an-ai-email-assistant-that-prioritizes-sorts-and-summarizes-with-llms-34m8)
+---
 
-### 2. Dual Summarization Workflows
+## Migration Architecture (Target State)
 
-**Module:** Extend `src/summarizer.py`
+### Target Data Flow
 
-**Integration Point:** After classification split, parallel paths for regular vs major update
+```
+auth.py           → get_access_token() → str (raw Bearer token, MSAL cached)
+graph_client.py   → GraphClient(access_token)
+                  → get_shared_mailbox_emails(mailbox, since, max_emails) → list[Email]
+                  → send_email(to, subject, body_html, cc, bcc) → None
+main.py           → GraphAuthenticator + GraphClient
+                  → catch AuthenticationError, GraphClientError
+config.py         → remove EWS_SERVER; scope is now hardcoded as "https://graph.microsoft.com/.default"
+```
 
-**Approach:** Add major update-specific methods to EmailSummarizer
+### Module Map: Before and After
+
+| Before | After | Change Type |
+|--------|-------|-------------|
+| `src/auth.py` — EWSAuthenticator | `src/auth.py` — GraphAuthenticator | Rename class, change scope, change return type |
+| `src/ews_client.py` — EWSClient | `src/graph_client.py` — GraphClient | New file, same public interface |
+| `src/ews_client.py` — Email dataclass | `src/graph_client.py` — Email dataclass | Move with file |
+| `src/main.py` — EWSAuthenticator, EWSClient, EWSClientError | Same file — GraphAuthenticator, GraphClient, GraphClientError | 4 import changes |
+| `src/config.py` — EWS_SERVER | Remove EWS_SERVER | Delete unused var |
+| `tests/conftest.py` — from src.ews_client import Email | from src.graph_client import Email | 1 import change |
+| `tests/test_*.py` — any `from src.ews_client import Email` | from src.graph_client import Email | 1 import change per file |
+
+### Full Component Diagram (Target State)
+
+```
+                            ┌──────────────────────────────────┐
+                            │          src/auth.py             │
+                            │  GraphAuthenticator              │
+                            │  MSAL client_credentials flow    │
+                            │  scope: graph.microsoft.com/.default │
+                            │  → get_access_token() → str      │
+                            └────────────────┬─────────────────┘
+                                             │ Bearer token
+                            ┌────────────────▼─────────────────┐
+                            │        src/graph_client.py       │
+                            │  GraphClient(access_token: str)  │
+                            │  HTTP: requests library          │
+                            │                                  │
+                            │  get_shared_mailbox_emails(      │
+                            │    mailbox, since, max_emails    │
+                            │  ) → list[Email]                 │
+                            │                                  │
+                            │  send_email(                     │
+                            │    to, subject, body_html,       │
+                            │    cc, bcc                       │
+                            │  ) → None                        │
+                            │                                  │
+                            │  Email (dataclass, same fields)  │
+                            └────────────────┬─────────────────┘
+                                             │ list[Email]
+                            ┌────────────────▼─────────────────┐
+                            │          src/main.py             │
+                            │  Orchestrator (unchanged logic)  │
+                            └───┬───────────────────────┬──────┘
+                                │                       │
+               ┌────────────────▼──────┐    ┌──────────▼──────────────┐
+               │  src/classifier.py    │    │  src/summarizer.py      │
+               │  UNTOUCHED            │    │  UNTOUCHED              │
+               └───────────────────────┘    └─────────────────────────┘
+```
+
+---
+
+## Interface Contract (GraphClient)
+
+GraphClient must expose exactly the same public interface as EWSClient. Internal implementation
+changes completely; the external API surface is a drop-in replacement.
+
+### Method 1: get_shared_mailbox_emails
 
 ```python
-class EmailSummarizer:
-    """Existing class with new major update methods."""
-
-    def summarize_major_updates(self, emails: list[Email]) -> MajorUpdateSummary:
-        """
-        Generate major update digest with admin-focused emphasis.
-
-        Args:
-            emails: List of classified major update emails
-
-        Returns:
-            MajorUpdateSummary with deadlines, actions, impact
-        """
-        if not emails:
-            return MajorUpdateSummary(
-                date=datetime.now().strftime("%A, %B %d, %Y"),
-                total_count=0,
-                updates=[],
-                urgent_deadlines=[],
-                action_required=[]
-            )
-
-        # Use specialized LLM prompt for admin-focused summarization
-        if self._llm_summarizer:
-            logger.info("Generating major update digest with admin-focused AI...")
-            digest = self._llm_summarizer.generate_major_update_digest(emails)
-        else:
-            digest = self._generate_basic_major_update_digest(emails)
-
-        return digest
-
-    def format_major_update_html(
-        self,
-        summary: MajorUpdateSummary,
-        mailbox: str
-    ) -> str:
-        """
-        Format major update digest with deadline emphasis and impact highlighting.
-
-        Returns:
-            HTML with urgent deadline callouts, action items, and service impact cards
-        """
-        # Enhanced HTML with deadline calendars, impact badges, action checklists
-        pass
-```
-
-**LLM Prompt Strategy:**
-
-```python
-# In llm_summarizer.py
-class LLMSummarizer:
-
-    REGULAR_DIGEST_PROMPT = """
-    Summarize these emails for busy professionals.
-    Focus on: key decisions, action items, meeting outcomes.
-    Tone: Executive summary, concise, business-focused.
+def get_shared_mailbox_emails(
+    self,
+    shared_mailbox: str,              # e.g. "messagingai@marsh.com"
+    since: datetime | None = None,    # timezone-aware UTC; None = today midnight
+    max_emails: int = 100
+) -> list[Email]:
     """
+    Fetch emails from a shared mailbox inbox since `since`.
 
-    MAJOR_UPDATE_DIGEST_PROMPT = """
-    Summarize these Microsoft 365 service update emails for IT admins.
-    Focus on: Deadlines, required actions, service impacts, affected users.
-    Extract: Effective dates, rollout timelines, user communication needs.
-    Prioritize: Retirements, breaking changes, security updates.
-    Tone: Technical, action-oriented, deadline-aware.
-    Format: Grouped by urgency (immediate action, 30 days, 90+ days).
+    Graph API endpoint used:
+        GET /users/{shared_mailbox}/mailFolders/inbox/messages
+        ?$filter=receivedDateTime ge {since}
+        &$orderby=receivedDateTime desc
+        &$top={max_emails}
+        &$select=id,subject,from,sender,receivedDateTime,bodyPreview,body,hasAttachments
+
+    Permissions required (application):
+        Mail.Read (granted tenant-wide or scoped via Exchange RBAC for Applications)
+
+    Returns:
+        list[Email] — same Email dataclass, same field semantics as EWSClient
     """
-
-    def generate_major_update_digest(self, emails: list[Email]) -> dict:
-        """Generate admin-focused digest with specialized prompt."""
-        messages = [
-            {"role": "system", "content": self.MAJOR_UPDATE_DIGEST_PROMPT},
-            {"role": "user", "content": self._format_emails_for_prompt(emails)}
-        ]
-        # Call Azure OpenAI with major update prompt
-        response = self._call_openai(messages)
-        return self._parse_major_update_response(response)
 ```
 
-**Decision:** One module with different methods vs separate summarizer classes
-- **Chosen:** Extend existing EmailSummarizer with major_update methods
-- **Rationale:** Code reuse (shared HTML formatting utilities, LLM connection handling), consistent interface, easier maintenance. Industry pattern: "Different prompts for different email types within same processing system" ([source](https://dev.to/ilbets/empower-your-email-routine-with-llm-agents-10x-efficiency-unlocked-4oke))
+**Graph API field mapping:**
 
-**Sources:**
-- [LLM Email Processing with Multiple Prompts](https://igorsteblii.medium.com/empower-your-email-routine-with-llm-agents-10x-efficiency-unlocked-e3c81b05d99e)
-- [Microsoft Message Center Major Updates](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/message-center?view=o365-worldwide)
+| Email field | Graph API field | Notes |
+|-------------|-----------------|-------|
+| `id` | `message.id` | String, Graph message ID format |
+| `subject` | `message.subject` | String |
+| `sender_name` | `message.from.emailAddress.name` | Use `from`, not `sender` |
+| `sender_email` | `message.from.emailAddress.address` | Use `from`, not `sender` |
+| `received_datetime` | `message.receivedDateTime` | ISO 8601 UTC string → datetime |
+| `body_preview` | `message.bodyPreview` | First 255 chars, plain text, already stripped |
+| `body_content` | `message.body.content` + strip_html() | Graph returns HTML; strip tags same as EWS |
+| `has_attachments` | `message.hasAttachments` | Boolean |
 
-### 3. Configuration Strategy
+**OData filter for date-based incremental fetch:**
 
-**Module:** Extend `src/config.py`
+```
+GET /users/{mailbox}/mailFolders/inbox/messages
+    ?$filter=receivedDateTime ge {since.strftime('%Y-%m-%dT%H:%M:%SZ')}
+    &$orderby=receivedDateTime desc
+    &$top={max_emails}
+    &$select=id,subject,from,sender,receivedDateTime,bodyPreview,body,hasAttachments
+```
 
-**Approach:** Add major update config to existing .env file with namespace prefix
+**Critical constraint from official docs:** When using `$filter` and `$orderby` on the same
+query, both properties must appear in both parameters in the same order, or the API returns
+`InefficientFilter` error. `receivedDateTime` must appear in `$filter` before other properties,
+and in `$orderby` in the same position.
+
+**Pagination:** Graph defaults to 10 messages per page. Using `$top=100` eliminates the need
+for pagination for InboxIQ's typical volumes. If more than 100 messages are needed in a run,
+follow `@odata.nextLink` in the response. For InboxIQ's current scale (hourly runs), this is
+unlikely to be required.
+
+### Method 2: send_email
 
 ```python
-# In config.py
-class Config:
-    """Existing config with major update additions."""
+def send_email(
+    self,
+    to_recipients: list[str] | str,
+    subject: str,
+    body_html: str,
+    cc_recipients: list[str] | None = None,
+    bcc_recipients: list[str] | None = None
+) -> None:
+    """
+    Send an email from the configured USER_EMAIL account.
 
-    # Existing fields...
+    Graph API endpoint used:
+        POST /users/{Config.USER_EMAIL}/sendMail
+        Content-Type: application/json
 
-    # Major Update Configuration (new)
-    MAJOR_UPDATE_TO: list[str] = _parse_email_list("MAJOR_UPDATE_TO")
-    MAJOR_UPDATE_CC: list[str] = _parse_email_list("MAJOR_UPDATE_CC")
-    MAJOR_UPDATE_BCC: list[str] = _parse_email_list("MAJOR_UPDATE_BCC")
+    For SendAs (SEND_FROM != USER_EMAIL):
+        Set message.from.emailAddress.address = Config.get_send_from()
+        Graph respects the `from` field when the app has Mail.Send permission
 
-    MAJOR_UPDATE_ENABLED: bool = os.getenv("MAJOR_UPDATE_ENABLED", "true").lower() == "true"
+    Permissions required (application):
+        Mail.Send
 
-    @classmethod
-    def get_major_update_recipients(cls) -> list[str]:
-        """
-        Get major update digest recipients.
-        Falls back to regular recipients if not configured separately.
-        """
-        if cls.MAJOR_UPDATE_TO:
-            return cls.MAJOR_UPDATE_TO
-        return cls.get_recipients()  # Fallback to regular digest recipients
-
-    @classmethod
-    def validate(cls) -> None:
-        """Extended validation with major update checks."""
-        # Existing validation...
-
-        # Major update validation
-        if cls.MAJOR_UPDATE_ENABLED and not cls.get_major_update_recipients():
-            logger.warning(
-                "MAJOR_UPDATE_ENABLED but no recipients configured. "
-                "Falling back to regular digest recipients."
-            )
+    Raises:
+        GraphClientError on non-2xx response
+    """
 ```
 
-**Example .env structure:**
-
-```bash
-# Regular Digest Configuration
-SUMMARY_TO=team@company.com
-SUMMARY_CC=manager@company.com
-
-# Major Update Digest Configuration (separate recipients)
-MAJOR_UPDATE_TO=admin-team@company.com,it-managers@company.com
-MAJOR_UPDATE_CC=cto@company.com
-MAJOR_UPDATE_ENABLED=true
-```
-
-**Decision:** Same .env vs separate config file
-- **Chosen:** Same .env with namespaced variables
-- **Rationale:** Simpler deployment (one config file), shared auth/connection settings prevent duplication, clear namespace (MAJOR_UPDATE_*) prevents confusion, aligns with existing pattern (SUMMARY_TO/CC/BCC)
-
-**Alternative Considered:** Separate .env.major_updates file
-- **Why Not:** Increases deployment complexity, requires loading multiple files, duplicates shared settings (auth, mailbox), harder to maintain environment-specific configs
-
-### 4. State Management
-
-**Module:** Extend `src/state.py`
-
-**Approach:** Single state file with digest type tracking
-
-```python
-class StateManager:
-    """Extended with major update tracking."""
-
-    def get_last_run(self, digest_type: str = "regular") -> datetime | None:
-        """
-        Get last run timestamp for specific digest type.
-
-        Args:
-            digest_type: "regular" or "major_update"
-
-        Returns:
-            datetime of last run for this digest type
-        """
-        key = f"last_run_{digest_type}"
-        timestamp = self._state.get(key)
-        if timestamp:
-            return datetime.fromisoformat(timestamp)
-
-        # Fallback to legacy "last_run" key for regular digest
-        if digest_type == "regular":
-            legacy = self._state.get("last_run")
-            if legacy:
-                return datetime.fromisoformat(legacy)
-
-        return None
-
-    def set_last_run(
-        self,
-        timestamp: datetime | None = None,
-        digest_type: str = "regular"
-    ) -> None:
-        """
-        Set last run timestamp for specific digest type.
-
-        Args:
-            timestamp: Timestamp to save (defaults to now)
-            digest_type: "regular" or "major_update"
-        """
-        if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
-
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
-
-        key = f"last_run_{digest_type}"
-        self._state[key] = timestamp.isoformat()
-
-        # Maintain legacy key for backward compatibility
-        if digest_type == "regular":
-            self._state["last_run"] = timestamp.isoformat()
-
-        self._save()
-        logger.info(f"Updated {digest_type} digest last run: {timestamp.isoformat()}")
-
-    def get_state_summary(self) -> dict:
-        """Get summary of all tracked digest states."""
-        return {
-            "regular": self.get_last_run("regular"),
-            "major_update": self.get_last_run("major_update"),
-            "raw_state": self._state
-        }
-```
-
-**State file structure:**
+**Graph API request body:**
 
 ```json
 {
-  "last_run": "2026-02-23T14:30:00+00:00",
-  "last_run_regular": "2026-02-23T14:30:00+00:00",
-  "last_run_major_update": "2026-02-23T14:30:00+00:00"
+  "message": {
+    "subject": "string",
+    "body": {
+      "contentType": "HTML",
+      "content": "<html>...</html>"
+    },
+    "toRecipients": [
+      { "emailAddress": { "address": "user@domain.com" } }
+    ],
+    "ccRecipients": [
+      { "emailAddress": { "address": "user@domain.com" } }
+    ],
+    "bccRecipients": [
+      { "emailAddress": { "address": "user@domain.com" } }
+    ],
+    "from": {
+      "emailAddress": {
+        "address": "send-from@domain.com"
+      }
+    }
+  },
+  "saveToSentItems": true
 }
 ```
 
-**Decision:** One state file vs separate tracking
-- **Chosen:** Single state file with digest type keys
-- **Rationale:** Both digests run in same invocation with same fetch time, simplifies state management (one file to backup/clear), prevents state drift between digest types, enables unified --clear-state flag
+Graph returns `202 Accepted` on success (no body). Any non-2xx response should raise
+`GraphClientError`.
 
-**Alternative Considered:** Separate .state_regular.json and .state_major_updates.json
-- **Why Not:** State could drift if one digest fails, harder to clear state atomically, more complex --clear-state implementation, both digests fetch same emails so separate tracking adds no value
-
-**Sources:**
-- [Python State Management in Email Pipelines](https://github.com/KHolodilin/python-email-automation-processor)
-
-### 5. Orchestration Layer
-
-**Module:** Extend `src/main.py`
-
-**Approach:** Sequential orchestration of two digest workflows
+### Error Class
 
 ```python
-def main() -> int:
-    """
-    Extended main function with major update detection.
-    """
-    # ... existing setup (logging, config, auth, EWS client) ...
-
-    # Initialize state manager
-    state = StateManager()
-
-    # Initialize classifier
-    classifier = EmailClassifier(use_llm=Config.USE_LLM_SUMMARY)
-
-    # Determine fetch mode (same for both digests)
-    since = None if args.full else state.get_last_run("regular")
-
-    # Fetch emails (shared step)
-    logger.info(f"Fetching emails from {Config.SHARED_MAILBOX}...")
-    all_emails = ews_client.get_shared_mailbox_emails(Config.SHARED_MAILBOX, since=since)
-
-    if not all_emails:
-        logger.info("No new emails found - skipping both digests")
-        return 0
-
-    # Classify and split emails
-    logger.info(f"Classifying {len(all_emails)} emails...")
-    regular_emails, major_update_emails = classifier.classify_batch(all_emails)
-    logger.info(f"  Regular: {len(regular_emails)}, Major Updates: {len(major_update_emails)}")
-
-    # Initialize summarizer (used for both digest types)
-    summarizer = EmailSummarizer()
-
-    # Process regular digest
-    if regular_emails:
-        logger.info("=" * 60)
-        logger.info("REGULAR DIGEST")
-        logger.info("=" * 60)
-
-        summary = summarizer.summarize_emails(regular_emails)
-        subject = summarizer.get_subject_line(summary, Config.SHARED_MAILBOX)
-        body_html = summarizer.format_summary_html(summary, Config.SHARED_MAILBOX)
-
-        if not args.dry_run:
-            ews_client.send_email(
-                to_recipients=Config.get_recipients(),
-                subject=subject,
-                body_html=body_html,
-                cc_recipients=Config.SUMMARY_CC,
-                bcc_recipients=Config.SUMMARY_BCC
-            )
-            state.set_last_run(digest_type="regular")
-            logger.info("Regular digest sent successfully")
-    else:
-        logger.info("No regular emails to summarize")
-
-    # Process major update digest
-    if major_update_emails and Config.MAJOR_UPDATE_ENABLED:
-        logger.info("=" * 60)
-        logger.info("MAJOR UPDATE DIGEST")
-        logger.info("=" * 60)
-
-        major_summary = summarizer.summarize_major_updates(major_update_emails)
-        major_subject = summarizer.get_major_update_subject_line(major_summary)
-        major_body_html = summarizer.format_major_update_html(major_summary, Config.SHARED_MAILBOX)
-
-        if not args.dry_run:
-            ews_client.send_email(
-                to_recipients=Config.get_major_update_recipients(),
-                subject=major_subject,
-                body_html=major_body_html,
-                cc_recipients=Config.MAJOR_UPDATE_CC,
-                bcc_recipients=Config.MAJOR_UPDATE_BCC
-            )
-            state.set_last_run(digest_type="major_update")
-            logger.info("Major update digest sent successfully")
-    elif major_update_emails:
-        logger.info("Major updates found but MAJOR_UPDATE_ENABLED=false")
-    else:
-        logger.info("No major updates to summarize")
-
-    logger.info("=" * 60)
-    logger.info("Email Summarizer Agent Completed Successfully")
-    logger.info("=" * 60)
-    return 0
+class GraphClientError(Exception):
+    """Raised when a Graph API operation fails."""
+    pass
 ```
 
-**Decision:** Sequential vs parallel vs higher-level coordinator
-- **Chosen:** Sequential orchestration in main.py
-- **Rationale:** Both digests use same EWS connection, state updates must be atomic, simple deployment model (one invocation), shared error handling, easier debugging. Parallel execution adds complexity without performance benefit (both are I/O-bound, share auth/connection).
+This replaces `EWSClientError` in main.py exception handling. The name changes but the
+semantics are identical.
 
-**Alternative Considered:** Parallel execution with threading
-- **Why Not:** EWS client connection not thread-safe, state updates harder to coordinate, error handling becomes complex, minimal performance gain (I/O-bound operations)
+### Implementation Approach: requests Library (Not msgraph-sdk)
 
-**Alternative Considered:** Higher-level coordinator module
-- **Why Not:** Over-engineering for two digest types, adds indirection without clear benefit, main.py already serves this role effectively
+**Recommendation:** Use the `requests` library directly with Bearer token from MSAL, not
+the `msgraph-sdk` package.
 
-## Integration Points Summary
+**Rationale:**
+- `requests` is already a transitive dependency of `httpx` in requirements.txt, and is a
+  well-understood standard library.
+- `msgraph-sdk` uses `async/await` throughout (kiota-based). InboxIQ's entire codebase is
+  synchronous. Introducing `asyncio.run()` wrappers would add complexity with no benefit.
+- The two Graph API calls InboxIQ needs (list messages, send mail) are straightforward
+  REST calls. The SDK abstraction layer adds installation overhead (~15 packages) without
+  architectural benefit for this scope.
+- Direct `requests` calls are easier to mock in tests (no SDK object graph to stub).
+- MSAL's token caching continues to work identically — get token, pass as Bearer header.
 
-| Component | Type | Integration Point | Rationale |
-|-----------|------|-------------------|-----------|
-| EmailClassifier | NEW | Between fetch and summarize | Early classification enables clean stream separation |
-| EmailSummarizer | EXTEND | Add major_update methods | Code reuse, consistent interface, shared LLM connection |
-| LLMSummarizer | EXTEND | Add major update prompts | Specialized prompts for admin-focused summarization |
-| Config | EXTEND | Add MAJOR_UPDATE_* vars | Shared .env with namespace prevents duplication |
-| StateManager | EXTEND | Add digest_type parameter | Unified state file prevents drift, simplifies management |
-| main.py | EXTEND | Sequential workflow | Shared connection, atomic state, simple deployment |
-| ews_client.py | NO CHANGE | - | Classification separate from EWS operations |
+**Token acquisition (no change to MSAL flow):**
 
-## Data Flow Changes
-
-### Before (Current v0.3)
-
-```
-Auth → Fetch Emails → Summarize → Format HTML → Send → Update State
-```
-
-### After (v1.0 with Major Updates)
-
-```
-Auth → Fetch Emails → Classify → Split
-                                   ├─> Regular Emails → Summarize (general) → Format → Send (team) → Update State
-                                   └─> Major Updates → Summarize (admin) → Format+ → Send (admins) → Update State
-```
-
-## Component Dependencies
-
-```
-classifier.py
-  └─> ews_client.py (Email dataclass)
-  └─> llm_classifier.py (optional, for LLM enhancement)
-
-summarizer.py (extended)
-  └─> ews_client.py (Email dataclass)
-  └─> llm_summarizer.py (extended with major update prompts)
-  └─> config.py
-
-llm_summarizer.py (extended)
-  └─> Azure OpenAI
-  └─> Different prompts for regular vs major update
-
-main.py (extended)
-  └─> classifier.py (NEW)
-  └─> summarizer.py (extended)
-  └─> state.py (extended)
-  └─> config.py (extended)
-  └─> ews_client.py (no change)
-  └─> auth.py (no change)
-```
-
-## Suggested Build Order
-
-Based on dependencies and risk:
-
-### Phase 1: Foundation (Low Risk, Enables Testing)
-1. **EmailClassifier module** (`classifier.py`)
-   - No dependencies on other changes
-   - Can be tested independently with existing Email objects
-   - Rule-based detection only (defer LLM enhancement)
-   - **Validation:** Unit tests with sample Message Center emails
-
-2. **Config extension** (`config.py`)
-   - Add MAJOR_UPDATE_* variables
-   - Add recipient getters with fallbacks
-   - **Validation:** Config.validate() includes major update checks
-
-### Phase 2: Summarization (Medium Risk, Core Feature)
-3. **LLM prompt extension** (`llm_summarizer.py`)
-   - Add MAJOR_UPDATE_DIGEST_PROMPT
-   - Add generate_major_update_digest() method
-   - **Validation:** Test prompt with sample major update emails
-
-4. **Summarizer extension** (`summarizer.py`)
-   - Add summarize_major_updates() method
-   - Add format_major_update_html() method
-   - Add get_major_update_subject_line() method
-   - **Validation:** Generate sample major update digest HTML
-
-### Phase 3: State & Orchestration (Higher Risk, Integration)
-5. **State management extension** (`state.py`)
-   - Add digest_type parameter support
-   - Maintain backward compatibility with legacy key
-   - **Validation:** Test state read/write with both digest types
-
-6. **Main orchestration** (`main.py`)
-   - Integrate classifier after fetch
-   - Add major update workflow
-   - Add logging for both digest types
-   - **Validation:** End-to-end test with --dry-run
-
-### Phase 4: Polish (Optional Enhancements)
-7. **LLM classifier** (`llm_classifier.py`, optional)
-   - LLM-enhanced classification for edge cases
-   - Falls back to rule-based if unavailable
-   - **Validation:** Compare LLM vs rule-based accuracy
-
-8. **Enhanced HTML formatting** (optional)
-   - Deadline calendars, impact badges, action checklists
-   - **Validation:** Visual review of major update digest
-
-## Risk Mitigation
-
-### Existing Pipeline Protection
-- **Risk:** Breaking existing regular digest functionality
-- **Mitigation:**
-  - Classification returns empty list if no major updates found
-  - Regular digest path unchanged when major_update_emails is empty
-  - Feature flag MAJOR_UPDATE_ENABLED allows disabling
-  - Backward compatible state management (legacy "last_run" key maintained)
-
-### Configuration Errors
-- **Risk:** Misconfigured recipients or missing variables
-- **Mitigation:**
-  - Fallback to regular recipients if major update recipients not set
-  - Config.validate() extended with major update checks
-  - Logged warnings for fallback scenarios
-
-### State Drift
-- **Risk:** One digest succeeds, other fails, state becomes inconsistent
-- **Mitigation:**
-  - Both digests use same fetch timestamp
-  - State updates only after successful send
-  - Atomic state file writes
-  - Clear error boundaries with try/except per digest
-
-### Classification Accuracy
-- **Risk:** False positives (regular emails marked as major updates) or false negatives (major updates missed)
-- **Mitigation:**
-  - Conservative rule-based detection (sender AND keywords)
-  - Logged classification results for monitoring
-  - Optional LLM enhancement for edge cases
-  - Classification can be tuned without changing pipeline
-
-## Scalability Considerations
-
-| Concern | Current Scale | Future Scale | Approach |
-|---------|---------------|--------------|----------|
-| Email volume | <100/day | <500/day | Classification is O(n), negligible overhead |
-| Classification accuracy | Rule-based sufficient | May need ML | Designed for future LLM enhancement |
-| Digest types | 2 (regular, major) | 3-5 (add urgent, security) | Pattern extends: classify → split → summarize → send |
-| Recipients | <10 per digest | <50 per digest | EWS handles bulk recipients efficiently |
-| State complexity | 2 digest types | 5 digest types | StateManager design scales linearly |
-
-## Performance Implications
-
-### Additional Processing Time
-- **Classification:** ~50-200ms per email (rule-based), ~1-2s with LLM
-- **LLM Summarization:** Separate API calls for major updates (~3-5s)
-- **HTML Formatting:** Minimal (<100ms)
-- **Email Sending:** One additional send operation (~500ms)
-
-**Total overhead:** ~5-10 seconds for typical batch (50 emails, 5 major updates)
-
-### Token Usage (Azure OpenAI)
-- **Current:** ~1000-3000 tokens per regular digest
-- **With Major Updates:** +500-1500 tokens for major update digest
-- **Classification (if LLM enabled):** +100 tokens per email
-
-**Cost impact:** Minimal (~$0.01-0.03 per run at GPT-4 pricing)
-
-## Testing Strategy
-
-### Unit Tests
-- `test_classifier.py`: Test classification rules, edge cases, batch processing
-- `test_summarizer.py`: Test major update summarization, HTML formatting
-- `test_config.py`: Test recipient fallbacks, validation
-- `test_state.py`: Test digest type tracking, backward compatibility
-
-### Integration Tests
-- End-to-end with --dry-run flag
-- Test classification accuracy with real Message Center emails
-- Verify both digests generated with correct recipients
-- Validate state updates after each digest
-
-### Validation Criteria
-- **Classification accuracy:** >95% for known Message Center patterns
-- **No regression:** Regular digest unchanged when no major updates
-- **Backward compatibility:** Legacy state file format still works
-- **Error handling:** Individual digest failures don't cascade
-
-## Migration Path
-
-### From v0.3 (Current) to v1.0 (Major Updates)
-
-**State Migration:**
 ```python
-# Automatic migration in StateManager._load()
-if "last_run" in state and "last_run_regular" not in state:
-    state["last_run_regular"] = state["last_run"]
-    state["last_run_major_update"] = state["last_run"]
+# auth.py change: scope switches from EWS to Graph
+scopes = ["https://graph.microsoft.com/.default"]  # was: https://outlook.office365.com/.default
+
+# auth.py change: return raw token, not OAuth2Credentials
+def get_access_token(self) -> str:
+    # Same MSAL acquire_token_for_client logic
+    # Returns result["access_token"] directly
 ```
 
-**Config Migration:**
-```bash
-# Add to existing .env
-MAJOR_UPDATE_ENABLED=true
-MAJOR_UPDATE_TO=admin-team@company.com
-# Optional: MAJOR_UPDATE_CC, MAJOR_UPDATE_BCC
-```
+**HTTP call pattern:**
 
-**Rollback Plan:**
-1. Set `MAJOR_UPDATE_ENABLED=false`
-2. Regular digest continues unchanged
-3. No code removal required (feature flag protects)
-
-## Architecture Anti-Patterns to Avoid
-
-### 1. Classification After Summarization
-**Why Bad:** Wastes LLM tokens summarizing emails that will be filtered, requires two classification passes (before split and after summarize)
-
-### 2. Separate Fetch Calls for Each Digest
-**Why Bad:** Duplicate EWS API calls, higher latency, potential for missed emails between calls
-
-### 3. Shared Summarization with Conditional Prompts
-**Why Bad:** Complex prompt engineering, harder to maintain, tight coupling between digest types
-
-### 4. Multiple State Files
-**Why Bad:** State drift risk, complex atomic updates, harder to backup/restore
-
-### 5. Parallel Digest Generation
-**Why Bad:** EWS connection not thread-safe, minimal performance gain (I/O-bound), complex error handling
-
-## Future Extension Points
-
-### Additional Digest Types
-Pattern extends naturally:
 ```python
-# classifier.py
-security_emails, urgent_emails, regular_emails = classifier.classify_multi_type(emails)
+class GraphClient:
+    BASE_URL = "https://graph.microsoft.com/v1.0"
 
-# main.py
-for digest_type, emails, config in [
-    ("security", security_emails, SecurityConfig),
-    ("urgent", urgent_emails, UrgentConfig),
-    ("regular", regular_emails, RegularConfig)
-]:
-    process_digest(digest_type, emails, config)
+    def __init__(self, access_token: str):
+        self._session = requests.Session()
+        self._session.headers.update({
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        })
+
+    def _get(self, path: str, params: dict = None) -> dict:
+        response = self._session.get(f"{self.BASE_URL}{path}", params=params)
+        if not response.ok:
+            raise GraphClientError(f"Graph API error {response.status_code}: {response.text}")
+        return response.json()
+
+    def _post(self, path: str, body: dict) -> None:
+        response = self._session.post(f"{self.BASE_URL}{path}", json=body)
+        if not response.ok:
+            raise GraphClientError(f"Graph API error {response.status_code}: {response.text}")
 ```
 
-### ML-Based Classification
+---
+
+## Integration Points
+
+### 1. auth.py Integration
+
+**What changes:**
+- Class rename: `EWSAuthenticator` → `GraphAuthenticator`
+- Scope: `"https://outlook.office365.com/.default"` → `"https://graph.microsoft.com/.default"`
+- Return type of public method: `get_ews_credentials() → OAuth2Credentials` becomes
+  `get_access_token() → str`
+- Remove `from exchangelib import OAuth2Credentials, Identity` import
+- Remove `get_ews_credentials()` method (or keep as deprecated wrapper if backward compat needed)
+
+**What stays identical:**
+- MSAL `ConfidentialClientApplication` setup
+- `acquire_token_silent` + `acquire_token_for_client` pattern (no change)
+- Token caching behavior
+- `clear_cache()` method
+- `AuthenticationError` exception class
+- Config.CLIENT_ID, CLIENT_SECRET, TENANT_ID usage
+
+**main.py call site change:**
+
 ```python
-# Future: llm_classifier.py
-class LLMEmailClassifier:
-    """Enhanced classification using Azure OpenAI."""
+# Before
+authenticator = EWSAuthenticator()
+credentials = authenticator.get_ews_credentials()
+ews_client = EWSClient(credentials)
 
-    def classify(self, email: Email) -> ClassificationResult:
-        prompt = f"Classify this email: {email.subject}"
-        response = self._call_openai(prompt)
-        return self._parse_classification(response)
+# After
+authenticator = GraphAuthenticator()
+access_token = authenticator.get_access_token()
+graph_client = GraphClient(access_token)
 ```
 
-### Custom Formatting Per Digest Type
+### 2. graph_client.py Integration
+
+**Consumes:**
+- `access_token: str` from `GraphAuthenticator.get_access_token()`
+- `Config.USER_EMAIL` (sender account for `sendMail`)
+- `Config.get_send_from()` (from address, may differ from USER_EMAIL)
+
+**Produces:**
+- `list[Email]` — consumed by `classifier.py`, `summarizer.py`, `extractor.py`
+- `None` (send_email) — side effect only
+
+**The `Email` dataclass stays in this file** (same as it was in `ews_client.py`). All
+downstream consumers need only their import path updated, not their code.
+
+### 3. main.py Integration
+
+Four changes, each mechanical:
+
 ```python
-# Future: formatter.py
-class DigestFormatter:
-    """Strategy pattern for different digest formats."""
+# Line 1: import change
+from .graph_client import GraphClient, GraphClientError  # was: from .ews_client import EWSClient, EWSClientError
 
-    def format_regular(self, summary) -> str: pass
-    def format_major_update(self, summary) -> str: pass
-    def format_security(self, summary) -> str: pass
+# Line 2: import change
+from .auth import GraphAuthenticator, AuthenticationError  # was: EWSAuthenticator
+
+# Line 3: instantiation change (in main())
+authenticator = GraphAuthenticator()
+access_token = authenticator.get_access_token()
+graph_client = GraphClient(access_token)
+
+# Line 4: error handler rename
+except GraphClientError as e:            # was: except EWSClientError as e:
+    logger.error(f"Graph API error: {e}")
+
+# Line 5: remove logging noise suppression for exchangelib
+# Remove: logging.getLogger("exchangelib").setLevel(logging.WARNING)
+
+# Line 6: banner text update (cosmetic)
+logger.info("Email Summarizer Agent Starting (Graph API)")  # was: (EWS)
 ```
 
-## Confidence Assessment
+**All pipeline logic in main.py is untouched** — the classify → split → summarize →
+format → send → update state sequence is identical.
 
-| Component | Confidence | Source |
-|-----------|------------|--------|
-| Classification placement | HIGH | Industry standard: classify after fetch, before summarization |
-| New module vs extend | HIGH | SOLID principles, existing codebase patterns |
-| State management approach | HIGH | Proven pattern in existing codebase |
-| Config strategy | HIGH | Consistent with existing SUMMARY_TO/CC/BCC pattern |
-| Sequential orchestration | HIGH | Simplicity, shared connection, atomic operations |
-| LLM prompt strategy | MEDIUM | Tested pattern, but prompt tuning may be needed |
-| Rule-based classification | MEDIUM | Effective for known patterns, may need LLM enhancement |
+### 4. config.py Integration
 
-## Gaps Requiring Investigation
+**Remove:**
+- `EWS_SERVER` field (no longer used)
 
-1. **Message Center Email Format:** Need sample emails to validate classification rules
-2. **LLM Prompt Tuning:** Major update prompt may need iteration based on actual output
-3. **HTML Formatting:** Major update digest design needs mockup/review
-4. **Impact Fields:** Exact structure of impact_level, deadline extraction needs validation
+**No new required vars:** The Graph API base URL is hardcoded in `graph_client.py`.
+The `.default` scope is hardcoded in `auth.py`.
+
+**Optional new env var** (if mailbox scoping via Exchange RBAC is configured):
+No change to config needed — the Graph API uses the same CLIENT_ID/CLIENT_SECRET/TENANT_ID
+already present.
+
+### 5. Test File Integration
+
+**conftest.py:**
+
+```python
+# Before
+from src.ews_client import Email
+
+# After
+from src.graph_client import Email
+```
+
+All fixture `Email()` constructor calls are identical — field names and types are unchanged.
+
+**test_classifier.py, test_integration.py, test_integration_dual_digest.py, etc.:**
+Any file containing `from src.ews_client import Email` needs the same one-line import change.
+
+**test_ews_client.py** (if it exists): This becomes `test_graph_client.py` — full rewrite
+to test Graph API calls using mocked `requests` responses.
+
+### 6. Microsoft Entra App Registration
+
+**Azure AD permission changes (admin action required, not code):**
+
+| Current (EWS) | New (Graph API) | Action |
+|---------------|-----------------|--------|
+| `EWS.AccessAsApp` (application) | Remove | Revoke in Azure portal |
+| — | `Mail.Read` (application) | Grant + admin consent |
+| — | `Mail.Send` (application) | Grant + admin consent |
+
+**Exchange RBAC scoping (optional but recommended for enterprise):**
+To restrict the app to only the configured shared mailbox (security best practice):
+
+```powershell
+# Exchange Online PowerShell — scope app to specific mailbox
+New-ServicePrincipal -AppId <CLIENT_ID> -ObjectId <SP_OBJECT_ID> -DisplayName "InboxIQ"
+
+New-ManagementScope -Name "InboxIQ-Mailboxes" `
+    -RecipientRestrictionFilter "PrimarySmtpAddress -eq 'messagingai@marsh.com'"
+
+New-ManagementRoleAssignment `
+    -App <SP_OBJECT_ID> `
+    -Role "Application Mail.Read" `
+    -CustomResourceScope "InboxIQ-Mailboxes"
+
+New-ManagementRoleAssignment `
+    -App <SP_OBJECT_ID> `
+    -Role "Application Mail.Send" `
+    -CustomResourceScope "InboxIQ-Mailboxes"
+
+# IMPORTANT: Remove tenant-wide Mail.Read/Mail.Send consent from Azure AD
+# The RBAC scope only works if the Azure AD grant is removed
+```
+
+Without this scoping, the app can read/send mail for any mailbox in the tenant. The scoping
+is a post-migration hardening step, not a prerequisite for the migration to function.
+
+---
+
+## Build Order
+
+Dependencies drive this order. Each step is independently testable before proceeding.
+
+### Step 1: auth.py — Scope and Return Type Change (1-2 hours)
+
+**Why first:** All other work depends on a working token. Validates Azure AD permissions.
+**Risk:** LOW — same MSAL flow, one string change for scope.
+
+Changes:
+- Add `GraphAuthenticator` class (or rename `EWSAuthenticator`)
+- Change scope to `"https://graph.microsoft.com/.default"`
+- Add `get_access_token() -> str` method that returns raw token
+- Keep `AuthenticationError` identical
+
+Test: Manually run `GraphAuthenticator().get_access_token()` and confirm a JWT is returned.
+
+### Step 2: graph_client.py — Core Implementation (4-6 hours)
+
+**Why second:** The main deliverable. Depends on Step 1 for a working token.
+**Risk:** MEDIUM — new API surface, pagination edge cases, HTML stripping.
+
+Changes:
+- Create `src/graph_client.py` from scratch
+- Copy `Email` dataclass from `ews_client.py` (no field changes)
+- Implement `get_shared_mailbox_emails()` using requests + OData filter
+- Implement `send_email()` using requests + JSON body
+- Define `GraphClientError`
+
+Test with `pytest` via:
+- Unit tests using `unittest.mock.patch` on `requests.Session.get` / `.post`
+- One manual smoke test against the live shared mailbox with `--dry-run`
+
+### Step 3: config.py — Remove EWS_SERVER (15 minutes)
+
+**Why third:** Cleanup. Remove the unused variable.
+**Risk:** VERY LOW — pure deletion.
+
+Changes:
+- Remove `EWS_SERVER` field
+- Update `validate()` docstring if it mentions EWS
+
+### Step 4: main.py — Import and Instantiation Swap (30 minutes)
+
+**Why fourth:** Depends on Steps 1 and 2. The mechanical wiring.
+**Risk:** LOW — purely mechanical changes, no logic changes.
+
+Changes:
+- Swap 2 import lines (EWSAuthenticator → GraphAuthenticator, EWSClient → GraphClient)
+- Swap 1 instantiation block (credentials → access_token)
+- Rename 1 exception handler (EWSClientError → GraphClientError)
+- Remove exchangelib logger suppression
+- Update banner text
+
+### Step 5: Test File Import Updates (30 minutes)
+
+**Why fifth:** After graph_client.py exists, update all test import paths.
+**Risk:** VERY LOW — one-line change per file.
+
+Changes:
+- `conftest.py`: update `from src.ews_client import Email`
+- Any other test file importing from `src.ews_client`
+- Run full test suite: `pytest tests/` — all existing tests must pass
+
+### Step 6: New graph_client Tests (2-4 hours)
+
+**Why last:** Test the new module with mocked HTTP responses.
+**Risk:** LOW — tests do not affect runtime behavior.
+
+New file: `tests/test_graph_client.py`
+
+---
+
+## Test Strategy
+
+### Principle: Verify Migration Correctness, Not Just Coverage
+
+The migration is correct when existing tests pass unchanged (modulo import paths) AND
+new Graph API tests exercise the new HTTP behavior.
+
+### Layer 1: Existing Tests Must Pass Unmodified (except imports)
+
+All tests in `tests/` currently test behavior downstream of the client (classifier, summarizer,
+extractor, state, etc.). These tests use the `Email` dataclass directly via fixtures. After the
+import path is updated in `conftest.py`, all these tests must pass without any other changes.
+
+**This is the primary regression guard.** If any existing test fails after the import
+path change, something has broken in the `Email` dataclass contract.
+
+Pass criteria: `pytest tests/ -v` with all existing tests green.
+
+### Layer 2: GraphClient Unit Tests (New)
+
+File: `tests/test_graph_client.py`
+
+Test `get_shared_mailbox_emails`:
+- Mock `requests.Session.get` to return a Graph-format JSON response
+- Verify `Email` fields are populated correctly from Graph response fields
+- Verify OData filter includes correct `receivedDateTime` format (ISO 8601 UTC, `Z` suffix)
+- Verify `$top` parameter is sent
+- Verify HTML stripping works on `body.content`
+- Verify `since=None` defaults to today midnight UTC
+- Verify `GraphClientError` raised on non-200 response
+
+Test `send_email`:
+- Mock `requests.Session.post` to return 202
+- Verify request body structure (toRecipients, ccRecipients, bccRecipients, from, body.contentType=HTML)
+- Verify `from` field uses `Config.get_send_from()` not `Config.USER_EMAIL` when different
+- Verify `GraphClientError` raised on non-202 response
+- Verify empty recipient lists are filtered out
+
+Test auth:
+- Mock `msal.ConfidentialClientApplication.acquire_token_for_client`
+- Verify scope is `"https://graph.microsoft.com/.default"`
+- Verify `AuthenticationError` on missing access_token in result
+
+### Layer 3: Migration Verification (Manual + Dry-Run)
+
+**Before decommissioning EWS:**
+
+1. Run both old and new clients against the same mailbox and compare output:
+   ```python
+   # Verification script (not committed, run once)
+   ews_emails = ews_client.get_shared_mailbox_emails(mailbox, since=since)
+   graph_emails = graph_client.get_shared_mailbox_emails(mailbox, since=since)
+   assert len(ews_emails) == len(graph_emails), "Email count mismatch"
+   for e, g in zip(ews_emails, graph_emails):
+       assert e.subject == g.subject
+       assert e.sender_email == g.sender_email
+   ```
+
+2. Run `python -m src.main --dry-run` and verify the digest HTML looks correct.
+
+3. Run `python -m src.main --full --dry-run` to confirm full-fetch mode works.
+
+4. Send one live email (remove --dry-run) and verify delivery.
+
+### Layer 4: Error Case Verification
+
+- Verify behavior when mailbox is empty (no emails since `since`): should return `[]`
+- Verify behavior when access token is expired: MSAL cache should auto-refresh
+- Verify behavior when Graph returns 429 (throttling): GraphClientError with message
+- Verify behavior when `since` is far in the past and >100 emails exist: returns first 100
+
+### Confidence in Test Coverage
+
+The existing test suite is structured around the `Email` dataclass, not around EWS internals.
+This means the suite tests the semantics of what the pipeline expects from the client (correct
+fields, correct types, correct data), and those tests remain valid without modification. The
+migration risk is concentrated in the mapping logic inside `graph_client.py`, which is covered
+by the new Layer 2 tests.
+
+---
 
 ## Sources
 
-- [Email Classification Pipeline Architecture](https://github.com/shxntanu/email-classifier) - Classification before summarization pattern
-- [AI Email Assistant Architecture](https://dev.to/malok/building-an-ai-email-assistant-that-prioritizes-sorts-and-summarizes-with-llms-34m8) - Multi-step pipeline with classification
-- [LLM Email Processing](https://igorsteblii.medium.com/empower-your-email-routine-with-llm-agents-10x-efficiency-unlocked-e3c81b05d99e) - Multiple prompts for different email types
-- [Microsoft Message Center](https://learn.microsoft.com/en-us/microsoft-365/admin/manage/message-center?view=o365-worldwide) - Major update characteristics and notification patterns
-- [Email Automation Architecture](https://github.com/KHolodilin/python-email-automation-processor) - Modular Python email processing patterns
+- [Microsoft Graph API: List messages](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0) — Endpoint, OData filter/orderby constraints, permissions. Confidence: HIGH (official docs, updated 2025-07-23).
+
+- [Microsoft Graph API: sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0) — Request body format, from/cc/bcc fields, 202 response. Confidence: HIGH (official docs, updated 2025-07-23).
+
+- [Microsoft Graph API: message resource](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0) — Field names, types, and formats for all message properties. Confidence: HIGH (official docs, updated 2025-10-24).
+
+- [Exchange RBAC for Applications](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) — Mailbox scoping for app-only permissions, replaces Application Access Policies. Confidence: HIGH (official Exchange Online docs, updated 2025-11-25).
+
+- [Build Python apps with Microsoft Graph (app-only)](https://learn.microsoft.com/en-us/graph/tutorials/python-app-only) — App-only auth pattern, azure-identity vs MSAL vs requests. Confidence: HIGH (official tutorial, updated 2025-06-03).
+
+- [InboxIQ source code: src/ews_client.py](C:\giveitashot\src\ews_client.py) — Current EWSClient interface, Email dataclass, field semantics.
+
+- [InboxIQ source code: src/auth.py](C:\giveitashot\src\auth.py) — Current MSAL flow, scope, credential return type.
+
+- [InboxIQ source code: src/main.py](C:\giveitashot\src\main.py) — Orchestration layer, call sites that must change.
