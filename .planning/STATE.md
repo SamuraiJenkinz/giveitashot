@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26)
+See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Busy teams get a clear, actionable summary of their shared mailbox without reading every email
-**Current focus:** Planning next milestone
+**Current focus:** v2.0 Graph API Migration
 
 ## Current Position
 
-Phase: v1.0 complete (5 phases, 11 plans shipped)
-Plan: Not started
-Status: Ready to plan next milestone
-Last activity: 2026-02-26 -- v1.0 milestone complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v2.0 started
 
-Progress: [##########] v1.0 SHIPPED
+Progress: [░░░░░░░░░░] v2.0 Not started
 
 ## Accumulated Context
 
@@ -30,11 +30,16 @@ None.
 
 **EWS Deprecation Timeline:**
 - EWS disabled by default August 2026, complete shutdown 2027
-- Graph API migration needed within ~6 months
+- Graph API migration is THIS milestone's focus
+
+**Graph Migration Context:**
+- Existing Graph sending pattern from MDInsights project (client credentials, MSAL)
+- Same Entra app registration — add Graph permissions
+- Pure swap — no feature changes, just transport layer replacement
 
 ## Session Continuity
 
-Last session: 2026-02-26 (v1.0 milestone archived)
-Stopped at: Milestone completion
+Last session: 2026-03-12 (v2.0 milestone started)
+Stopped at: Defining requirements
 Resume file: None
-Next action: /gsd:new-milestone
+Next action: Complete requirements → roadmap

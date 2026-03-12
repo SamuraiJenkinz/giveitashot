@@ -37,7 +37,21 @@ Busy teams get a clear, actionable summary of their shared mailbox without readi
 
 <!-- Current scope. Building toward these. -->
 
-(None yet -- define with next milestone)
+## Current Milestone: v2.0 Graph API Migration
+
+**Goal:** Replace EWS (exchangelib) with Microsoft Graph API for all email operations before the August 2026 deprecation deadline.
+
+**Target features:**
+- Graph API email reading from shared mailbox (replace exchangelib fetch)
+- Graph API email sending for both digest types (replace exchangelib send)
+- Same app registration with added Graph permissions (Mail.Read, Mail.Send)
+- Complete removal of exchangelib dependency and all EWS code
+- Pure functional swap — identical behavior, new transport layer
+
+**Context:**
+- Existing Graph sending pattern available from MDInsights project (client credentials, MSAL, Mail.Send)
+- Same Entra app registration, add Graph permissions alongside existing EWS permissions
+- Deadline: EWS disabled by default August 2026, complete shutdown 2027
 
 ### Out of Scope
 
@@ -85,4 +99,4 @@ Busy teams get a clear, actionable summary of their shared mailbox without readi
 | Presence-based feature toggle | MAJOR_UPDATE_TO non-empty activates major digest, no separate flag | Good -- simple, intuitive |
 
 ---
-*Last updated: 2026-02-26 after v1.0 milestone*
+*Last updated: 2026-03-12 after v2.0 milestone start*
