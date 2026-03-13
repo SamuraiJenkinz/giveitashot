@@ -32,18 +32,21 @@ def _parse_email_list(env_var: str, default: str = "") -> list[str]:
 class Config:
     """Application configuration loaded from environment variables."""
 
-    # Azure AD Configuration for OAuth
-    TENANT_ID: str = os.getenv("AZURE_TENANT_ID", "")
-    CLIENT_ID: str = os.getenv("AZURE_CLIENT_ID", "")
-    CLIENT_SECRET: str = os.getenv("AZURE_CLIENT_SECRET", "")
+    # Microsoft Graph / Azure AD Configuration for OAuth
+    TENANT_ID: str = os.getenv("MICROSOFT_TENANT_ID", "")
+    CLIENT_ID: str = os.getenv("MICROSOFT_CLIENT_ID", "")
+    CLIENT_SECRET: str = os.getenv("MICROSOFT_CLIENT_SECRET", "")
 
-    # EWS Configuration
+    # EWS Server — Deprecated — used by ews_client.py until Phase 8 cutover
     EWS_SERVER: str = os.getenv("EWS_SERVER", "outlook.office365.com")
 
-    # User email for authentication (the account used to connect)
-    USER_EMAIL: str = os.getenv("USER_EMAIL", "kevin.j.taylor@mmc.com")
+    # Sender email address (shared mailbox sender)
+    SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")
 
-    # From address for sending (requires SendAs permission if different from USER_EMAIL)
+    # Alias — remove when ews_client.py is decommissioned (Phase 8)
+    USER_EMAIL: str = SENDER_EMAIL
+
+    # From address for sending (requires SendAs permission if different from SENDER_EMAIL)
     SEND_FROM: str = os.getenv("SEND_FROM", "")
 
     # Email Configuration
@@ -134,13 +137,13 @@ class Config:
         missing = []
 
         if not cls.TENANT_ID:
-            missing.append("AZURE_TENANT_ID")
+            missing.append("MICROSOFT_TENANT_ID")
         if not cls.CLIENT_ID:
-            missing.append("AZURE_CLIENT_ID")
+            missing.append("MICROSOFT_CLIENT_ID")
         if not cls.CLIENT_SECRET:
-            missing.append("AZURE_CLIENT_SECRET")
-        if not cls.USER_EMAIL:
-            missing.append("USER_EMAIL")
+            missing.append("MICROSOFT_CLIENT_SECRET")
+        if not cls.SENDER_EMAIL:
+            missing.append("SENDER_EMAIL")
 
         if missing:
             raise ValueError(
