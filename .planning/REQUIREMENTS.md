@@ -9,10 +9,10 @@ Requirements for Graph API migration. Each maps to roadmap phases.
 
 ### Authentication & Permissions
 
-- [ ] **AUTH-01**: App authenticates to Microsoft Graph using MSAL client credentials flow
-- [ ] **AUTH-02**: Auth uses Graph API scope (`graph.microsoft.com/.default`) instead of EWS scope
-- [ ] **AUTH-03**: Config supports Graph env vars (MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, SENDER_EMAIL)
-- [ ] **AUTH-04**: Bearer token is acquired and attached to all Graph API requests
+- [x] **AUTH-01**: App authenticates to Microsoft Graph using MSAL client credentials flow
+- [x] **AUTH-02**: Auth uses Graph API scope (`graph.microsoft.com/.default`) instead of EWS scope
+- [x] **AUTH-03**: Config supports Graph env vars (MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, SENDER_EMAIL)
+- [x] **AUTH-04**: Bearer token is acquired and attached to all Graph API requests
 
 ### Email Reading
 
@@ -71,10 +71,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 6 | Pending |
-| AUTH-02 | Phase 6 | Pending |
-| AUTH-03 | Phase 6 | Pending |
-| AUTH-04 | Phase 6 | Pending |
+| AUTH-01 | Phase 6 | Complete |
+| AUTH-02 | Phase 6 | Complete |
+| AUTH-03 | Phase 6 | Complete |
+| AUTH-04 | Phase 6 | Complete |
 | READ-01 | Phase 7 | Pending |
 | READ-02 | Phase 7 | Pending |
 | READ-03 | Phase 7 | Pending |
@@ -98,4 +98,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after roadmap creation (v2.0 phases 6-8)*
+*Last updated: 2026-03-13 after Phase 6 completion (AUTH-01 through AUTH-04 complete)*

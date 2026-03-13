@@ -72,7 +72,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md — GraphAuthenticator + config env var migration with backward compat
+- [x] 06-01-PLAN.md — GraphAuthenticator + config env var migration with backward compat
 
 ---
 
@@ -122,6 +122,6 @@ Phases execute in numeric order: 6 → 7 → 8
 | 3. Classification | v1.0 | 2/2 | Complete | 2026-02-25 |
 | 4. Major Updates Digest | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 5. Integration Testing | v1.0 | 3/3 | Complete | 2026-02-26 |
-| 6. Auth Foundation | v2.0 | 0/1 | Not started | - |
+| 6. Auth Foundation | v2.0 | 1/1 | Complete | 2026-03-13 |
 | 7. Graph Client | v2.0 | 0/TBD | Not started | - |
 | 8. Cutover | v2.0 | 0/TBD | Not started | - |
