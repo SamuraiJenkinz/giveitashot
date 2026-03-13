@@ -86,11 +86,11 @@ Plans:
   3. Pagination is handled — if the mailbox has more emails than the default page size, all matching emails are returned (not just the first 10)
   4. `send_email()` sends an HTML email via `POST /users/{sender}/sendMail` with TO, CC, BCC, and custom From address supported
   5. All unit tests in `test_graph_client.py` pass with mocked HTTP — Graph JSON parsing is fully exercised without requiring live credentials
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: Graph client read path (fetch, filter, pagination, field mapping)
-- [ ] 07-02: Graph client send path and unit test suite
+- [ ] 07-01-PLAN.md — Graph client read path (fetch, filter, pagination, field mapping)
+- [ ] 07-02-PLAN.md — Graph client send path and unit test suite
 
 ---
 
@@ -123,5 +123,5 @@ Phases execute in numeric order: 6 → 7 → 8
 | 4. Major Updates Digest | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 5. Integration Testing | v1.0 | 3/3 | Complete | 2026-02-26 |
 | 6. Auth Foundation | v2.0 | 1/1 | Complete | 2026-03-13 |
-| 7. Graph Client | v2.0 | 0/TBD | Not started | - |
+| 7. Graph Client | v2.0 | 0/2 | Planned | - |
 | 8. Cutover | v2.0 | 0/TBD | Not started | - |
