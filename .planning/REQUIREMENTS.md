@@ -71,31 +71,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Pending | Pending |
-| AUTH-02 | Pending | Pending |
-| AUTH-03 | Pending | Pending |
-| AUTH-04 | Pending | Pending |
-| READ-01 | Pending | Pending |
-| READ-02 | Pending | Pending |
-| READ-03 | Pending | Pending |
-| READ-04 | Pending | Pending |
-| READ-05 | Pending | Pending |
-| SEND-01 | Pending | Pending |
-| SEND-02 | Pending | Pending |
-| SEND-03 | Pending | Pending |
-| SEND-04 | Pending | Pending |
-| CLEAN-01 | Pending | Pending |
-| CLEAN-02 | Pending | Pending |
-| CLEAN-03 | Pending | Pending |
-| CLEAN-04 | Pending | Pending |
-| CLEAN-05 | Pending | Pending |
-| CLEAN-06 | Pending | Pending |
+| AUTH-01 | Phase 6 | Pending |
+| AUTH-02 | Phase 6 | Pending |
+| AUTH-03 | Phase 6 | Pending |
+| AUTH-04 | Phase 6 | Pending |
+| READ-01 | Phase 7 | Pending |
+| READ-02 | Phase 7 | Pending |
+| READ-03 | Phase 7 | Pending |
+| READ-04 | Phase 7 | Pending |
+| READ-05 | Phase 7 | Pending |
+| SEND-01 | Phase 7 | Pending |
+| SEND-02 | Phase 7 | Pending |
+| SEND-03 | Phase 7 | Pending |
+| SEND-04 | Phase 7 | Pending |
+| CLEAN-01 | Phase 8 | Pending |
+| CLEAN-02 | Phase 8 | Pending |
+| CLEAN-03 | Phase 8 | Pending |
+| CLEAN-04 | Phase 8 | Pending |
+| CLEAN-05 | Phase 8 | Pending |
+| CLEAN-06 | Phase 8 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- v2.0 requirements: 19 total
+- Mapped to phases: 19
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation (v2.0 phases 6-8)*
