@@ -1,17 +1,25 @@
 """
-OAuth 2.0 Authentication module for EWS using client credentials flow.
-Uses app-only authentication with client secret for Exchange Web Services.
+OAuth 2.0 Authentication module for Microsoft Graph API using client credentials flow.
+Uses app-only authentication with client secret for Microsoft Graph.
 """
 
 import logging
 from typing import Optional
 
 import msal
+
+# Kept for backward-compat get_ews_credentials() shim — remove when main.py migrates to Graph client (Phase 8)
 from exchangelib import OAuth2Credentials, Identity
 
 from .config import Config
 
 logger = logging.getLogger(__name__)
+
+# Graph API scope for client credentials (app-only)
+# Tokens acquired with this scope will have aud: https://graph.microsoft.com/
+GRAPH_SCOPE = ["https://graph.microsoft.com/.default"]
+
+# NOTE: Client secret expires per Azure AD app registration (typically 24 months). Monitor expiry.
 
 
 class AuthenticationError(Exception):
@@ -19,9 +27,9 @@ class AuthenticationError(Exception):
     pass
 
 
-class EWSAuthenticator:
+class GraphAuthenticator:
     """
-    Handles OAuth 2.0 authentication for Exchange Web Services.
+    Handles OAuth 2.0 authentication for Microsoft Graph API.
     Uses MSAL client credentials flow (app-only, no user interaction).
     """
 
@@ -29,7 +37,6 @@ class EWSAuthenticator:
         """Initialize the authenticator with configuration."""
         Config.validate()
         self._app: Optional[msal.ConfidentialClientApplication] = None
-        self._access_token: Optional[str] = None
 
     @property
     def app(self) -> msal.ConfidentialClientApplication:
@@ -44,31 +51,23 @@ class EWSAuthenticator:
 
     def get_access_token(self) -> str:
         """
-        Acquire an access token for EWS using client credentials flow.
+        Acquire an access token for Microsoft Graph using client credentials flow.
 
         Returns:
-            str: A valid access token for EWS.
+            str: A valid bearer token string for use as Authorization header value.
 
         Raises:
             AuthenticationError: If authentication fails.
         """
-        # EWS scope for client credentials (app-only)
-        scopes = ["https://outlook.office365.com/.default"]
-
         logger.info("Acquiring token using client credentials flow...")
 
         try:
-            # Try to get token from cache first
-            result = self.app.acquire_token_silent(scopes=scopes, account=None)
-
-            if not result:
-                # No cached token, acquire new one
-                logger.debug("No cached token, acquiring new token...")
-                result = self.app.acquire_token_for_client(scopes=scopes)
+            # acquire_token_for_client handles its own internal cache (MSAL 1.23+)
+            # acquire_token_silent is redundant for client credentials flow
+            result = self.app.acquire_token_for_client(scopes=GRAPH_SCOPE)
 
             if "access_token" in result:
                 logger.info("Token acquired successfully")
-                self._access_token = result["access_token"]
                 return result["access_token"]
 
             # Authentication failed
@@ -84,11 +83,13 @@ class EWSAuthenticator:
     def get_ews_credentials(self) -> OAuth2Credentials:
         """
         Get EWS credentials for use with exchangelib.
+        BACKWARD-COMPAT SHIM — kept so main.py continues to work until Phase 8.
+        Remove when main.py migrates to Graph client.
 
         Returns:
             OAuth2Credentials: Credentials object for exchangelib.
         """
-        access_token = self.get_access_token()
+        self.get_access_token()  # Validates auth works (uses Graph scope now)
 
         # Create OAuth2 credentials for exchangelib (app-only / client credentials)
         credentials = OAuth2Credentials(
@@ -97,11 +98,13 @@ class EWSAuthenticator:
             tenant_id=Config.TENANT_ID,
             identity=Identity(primary_smtp_address=Config.USER_EMAIL)
         )
-
         return credentials
 
     def clear_cache(self) -> None:
-        """Clear the cached token (useful for troubleshooting)."""
+        """Clear the cached MSAL application instance (useful for troubleshooting)."""
         self._app = None
-        self._access_token = None
         logger.info("Token cache cleared")
+
+
+# Alias — remove when main.py is updated (Phase 8)
+EWSAuthenticator = GraphAuthenticator
