@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 7 of 8 in v2.0 (Graph Client)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — Phase 6 complete, verified
+Plan: 1 of TBD in current phase
+Status: In progress
+Last activity: 2026-03-13 — Completed 07-01-PLAN.md (Graph Client read path)
 
-Progress: [███████░░░░░░░] v1.0 complete, v2.0 Phase 6 done
+Progress: [████████░░░░░░] v1.0 complete, v2.0 Phase 6 done, Phase 7 Plan 01 done
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [███████░░░░░░░] v1.0 complete, v2.0 Phase
 | Phase | Plan | Status | Duration |
 |-------|------|--------|----------|
 | 6. Auth Foundation | 06-01 | Complete | ~4 min |
+| 7. Graph Client | 07-01 | Complete | ~2 min |
 
 ## Accumulated Context
 
@@ -53,6 +54,9 @@ Recent decisions affecting current work:
 - [06-01]: `get_ews_credentials()` shim retained through Phase 7 — main.py line 154 depends on it; remove in Phase 8
 - [06-01]: `USER_EMAIL = SENDER_EMAIL` class-level alias documented with test — the alias is evaluated once at class definition; tests must update both independently
 - [06-01]: aud claim live verification deferred to integration testing — requires IT admin consent for Graph permissions (blocker still active)
+- [07-01]: Email.id uses internetMessageId (RFC2822 stable) as primary, falls back to Graph internal id — stable across folder moves
+- [07-01]: HTML body fetched from Graph and stripped locally via _strip_html() (verbatim from ews_client.py) — preserves exact classifier/summarizer input format
+- [07-01]: params=None after first pagination page — @odata.nextLink is a complete URL; passing params again duplicates query parameters causing 400 errors
 
 ### Pending Todos
 
@@ -66,6 +70,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Phase 6 complete and verified. Phase 7 ready to plan.
+Last session: 2026-03-13T19:16:35Z
+Stopped at: Completed 07-01-PLAN.md — Graph Client read path. Plan 02 (send path) next.
 Resume file: None
