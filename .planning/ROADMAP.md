@@ -103,10 +103,10 @@ Plans:
   2. `src/ews_client.py` is replaced by `src/graph_client.py` — no EWS file remains in `src/`
   3. `python main.py --dry-run` executes without importing or referencing any EWS symbol
   4. All 167 existing tests pass with import paths updated to `src.graph_client` — zero test logic changes required
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 08-01: EWS removal, import wiring, test migration, full regression
+- [ ] 08-01-PLAN.md — EWS removal, import rewiring, test migration, full regression
 
 ---
 
