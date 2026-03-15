@@ -16,18 +16,18 @@ Requirements for Graph API migration. Each maps to roadmap phases.
 
 ### Email Reading
 
-- [ ] **READ-01**: App fetches emails from shared mailbox via Graph REST API (`/users/{mailbox}/messages`)
-- [ ] **READ-02**: Emails are filtered by receivedDateTime since last run (incremental fetch)
-- [ ] **READ-03**: Email properties extracted: subject, sender, body, receivedDateTime, internetMessageId
-- [ ] **READ-04**: Pagination handled (follows `@odata.nextLink` until all matching emails retrieved)
-- [ ] **READ-05**: Email dataclass contract preserved (downstream classifier/summarizer unchanged)
+- [x] **READ-01**: App fetches emails from shared mailbox via Graph REST API (`/users/{mailbox}/messages`)
+- [x] **READ-02**: Emails are filtered by receivedDateTime since last run (incremental fetch)
+- [x] **READ-03**: Email properties extracted: subject, sender, body, receivedDateTime, internetMessageId
+- [x] **READ-04**: Pagination handled (follows `@odata.nextLink` until all matching emails retrieved)
+- [x] **READ-05**: Email dataclass contract preserved (downstream classifier/summarizer unchanged)
 
 ### Email Sending
 
-- [ ] **SEND-01**: App sends HTML digest emails via Graph REST API (`/users/{sender}/sendMail`)
-- [ ] **SEND-02**: TO/CC/BCC recipients supported
-- [ ] **SEND-03**: SendAs supported via `from` property in message body
-- [ ] **SEND-04**: Both regular and major update digests send successfully via Graph
+- [x] **SEND-01**: App sends HTML digest emails via Graph REST API (`/users/{sender}/sendMail`)
+- [x] **SEND-02**: TO/CC/BCC recipients supported
+- [x] **SEND-03**: SendAs supported via `from` property in message body
+- [x] **SEND-04**: Both regular and major update digests send successfully via Graph
 
 ### Cleanup & Cutover
 
@@ -75,15 +75,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 6 | Complete |
 | AUTH-03 | Phase 6 | Complete |
 | AUTH-04 | Phase 6 | Complete |
-| READ-01 | Phase 7 | Pending |
-| READ-02 | Phase 7 | Pending |
-| READ-03 | Phase 7 | Pending |
-| READ-04 | Phase 7 | Pending |
-| READ-05 | Phase 7 | Pending |
-| SEND-01 | Phase 7 | Pending |
-| SEND-02 | Phase 7 | Pending |
-| SEND-03 | Phase 7 | Pending |
-| SEND-04 | Phase 7 | Pending |
+| READ-01 | Phase 7 | Complete |
+| READ-02 | Phase 7 | Complete |
+| READ-03 | Phase 7 | Complete |
+| READ-04 | Phase 7 | Complete |
+| READ-05 | Phase 7 | Complete |
+| SEND-01 | Phase 7 | Complete |
+| SEND-02 | Phase 7 | Complete |
+| SEND-03 | Phase 7 | Complete |
+| SEND-04 | Phase 7 | Complete |
 | CLEAN-01 | Phase 8 | Pending |
 | CLEAN-02 | Phase 8 | Pending |
 | CLEAN-03 | Phase 8 | Pending |
@@ -98,4 +98,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after Phase 6 completion (AUTH-01 through AUTH-04 complete)*
+*Last updated: 2026-03-13 after Phase 7 completion (READ-01 through READ-05, SEND-01 through SEND-04 complete)*

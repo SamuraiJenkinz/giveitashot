@@ -89,8 +89,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Graph client read path (fetch, filter, pagination, field mapping)
-- [ ] 07-02-PLAN.md — Graph client send path and unit test suite
+- [x] 07-01-PLAN.md — Graph client read path (fetch, filter, pagination, field mapping)
+- [x] 07-02-PLAN.md — Graph client send path and unit test suite
 
 ---
 
@@ -123,5 +123,5 @@ Phases execute in numeric order: 6 → 7 → 8
 | 4. Major Updates Digest | v1.0 | 3/3 | Complete | 2026-02-25 |
 | 5. Integration Testing | v1.0 | 3/3 | Complete | 2026-02-26 |
 | 6. Auth Foundation | v2.0 | 1/1 | Complete | 2026-03-13 |
-| 7. Graph Client | v2.0 | 0/2 | Planned | - |
+| 7. Graph Client | v2.0 | 2/2 | Complete | 2026-03-13 |
 | 8. Cutover | v2.0 | 0/TBD | Not started | - |

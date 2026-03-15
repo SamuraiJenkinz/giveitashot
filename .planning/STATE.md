@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Busy teams get a clear, actionable summary of their shared mailbox without reading every email
-**Current focus:** Phase 7 — Graph Client (v2.0 Graph API Migration)
+**Current focus:** Phase 8 — Cutover (v2.0 Graph API Migration)
 
 ## Current Position
 
-Phase: 7 of 8 in v2.0 (Graph Client)
-Plan: 2 of 2 in current phase
-Status: Phase 7 complete — GraphClient fully implemented
-Last activity: 2026-03-15 — Completed 07-02-PLAN.md (Graph Client send path + test suite)
+Phase: 8 of 8 in v2.0 (Cutover)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-13 — Phase 7 complete, verified (5/5 must-haves, 214 tests green)
 
-Progress: [█████████░░░░░] v1.0 complete, v2.0 Phase 6 done, Phase 7 done, Phase 8 next
+Progress: [██████████░░░░] v1.0 complete, v2.0 Phases 6-7 done, Phase 8 next
 
 ## Performance Metrics
 
@@ -73,6 +73,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-15T03:52:00Z
-Stopped at: Completed 07-02-PLAN.md — GraphClient fully implemented. Phase 8 (cutover) next.
+Last session: 2026-03-13
+Stopped at: Phase 7 complete and verified. Phase 8 ready to plan.
 Resume file: None
