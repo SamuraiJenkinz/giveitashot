@@ -338,3 +338,82 @@ class GraphClient:
             raise
         except Exception as exc:
             raise GraphClientError(f"Failed to retrieve emails: {exc}") from exc
+
+    def send_email(
+        self,
+        to_recipients: list[str] | str,
+        subject: str,
+        body_html: str,
+        cc_recipients: list[str] | None = None,
+        bcc_recipients: list[str] | None = None,
+    ) -> None:
+        """
+        Send an HTML email via POST /users/{sender}/sendMail.
+
+        Builds a sendMail JSON payload with TO, CC, BCC, and optional From address
+        (for SendAs when SEND_FROM differs from SENDER_EMAIL). Saves the sent email
+        to Sent Items (saveToSentItems: True).
+
+        Args:
+            to_recipients:  Recipient email address(es). Single string or list.
+            subject:        Email subject line.
+            body_html:      HTML body content.
+            cc_recipients:  Optional CC recipient email addresses.
+            bcc_recipients: Optional BCC recipient email addresses.
+
+        Raises:
+            GraphClientError: If to_recipients is empty after filtering, or if the
+                              Graph API call fails.
+        """
+        # Normalize to list
+        if isinstance(to_recipients, str):
+            to_recipients = [to_recipients]
+
+        # Filter empty strings from all recipient lists
+        to_recipients = [r for r in to_recipients if r]
+        cc_recipients = [r for r in (cc_recipients or []) if r]
+        bcc_recipients = [r for r in (bcc_recipients or []) if r]
+
+        if not to_recipients:
+            raise GraphClientError("At least one TO recipient is required")
+
+        def _make_recipient(addr: str) -> dict:
+            return {"emailAddress": {"address": addr}}
+
+        # Log sender and recipient info (matching EWSClient pattern)
+        send_from = Config.get_send_from()
+        logger.info(f"Sending email from {Config.SENDER_EMAIL}")
+        if send_from and send_from != Config.SENDER_EMAIL:
+            logger.info(f"  SendAs: {send_from}")
+        logger.info(f"  TO: {', '.join(to_recipients)}")
+        if cc_recipients:
+            logger.info(f"  CC: {', '.join(cc_recipients)}")
+        if bcc_recipients:
+            logger.info(f"  BCC: {', '.join(bcc_recipients)}")
+
+        # Build message dict
+        message: dict = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": body_html},
+            "toRecipients": [_make_recipient(r) for r in to_recipients],
+        }
+        if cc_recipients:
+            message["ccRecipients"] = [_make_recipient(r) for r in cc_recipients]
+        if bcc_recipients:
+            message["bccRecipients"] = [_make_recipient(r) for r in bcc_recipients]
+
+        # SendAs: add 'from' only when SEND_FROM differs from SENDER_EMAIL
+        if send_from and send_from != Config.SENDER_EMAIL:
+            message["from"] = _make_recipient(send_from)
+
+        payload = {"message": message, "saveToSentItems": True}
+        url = f"{BASE_GRAPH_URL}/users/{Config.SENDER_EMAIL}/sendMail"
+
+        response = self._make_request("POST", url, json=payload)
+
+        if not response.ok:
+            self._raise_graph_error("send email", response)
+
+        logger.info(
+            f"Email sent successfully to {len(to_recipients)} recipient(s)"
+        )
