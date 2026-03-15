@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 7 of 8 in v2.0 (Graph Client)
-Plan: 1 of TBD in current phase
-Status: In progress
-Last activity: 2026-03-13 — Completed 07-01-PLAN.md (Graph Client read path)
+Plan: 2 of 2 in current phase
+Status: Phase 7 complete — GraphClient fully implemented
+Last activity: 2026-03-15 — Completed 07-02-PLAN.md (Graph Client send path + test suite)
 
-Progress: [████████░░░░░░] v1.0 complete, v2.0 Phase 6 done, Phase 7 Plan 01 done
+Progress: [█████████░░░░░] v1.0 complete, v2.0 Phase 6 done, Phase 7 done, Phase 8 next
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [████████░░░░░░] v1.0 complete, v2.0 Phase
 |-------|------|--------|----------|
 | 6. Auth Foundation | 06-01 | Complete | ~4 min |
 | 7. Graph Client | 07-01 | Complete | ~2 min |
+| 7. Graph Client | 07-02 | Complete | ~10 min |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ Recent decisions affecting current work:
 - [07-01]: Email.id uses internetMessageId (RFC2822 stable) as primary, falls back to Graph internal id — stable across folder moves
 - [07-01]: HTML body fetched from Graph and stripped locally via _strip_html() (verbatim from ews_client.py) — preserves exact classifier/summarizer input format
 - [07-01]: params=None after first pagination page — @odata.nextLink is a complete URL; passing params again duplicates query parameters causing 400 errors
+- [07-02]: response.ok (not == 200) for sendMail success — Graph returns 202 Accepted with empty body
+- [07-02]: 'from' field in sendMail message only when SEND_FROM differs from SENDER_EMAIL — omitted when same to avoid unnecessary Graph field
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T19:16:35Z
-Stopped at: Completed 07-01-PLAN.md — Graph Client read path. Plan 02 (send path) next.
+Last session: 2026-03-15T03:52:00Z
+Stopped at: Completed 07-02-PLAN.md — GraphClient fully implemented. Phase 8 (cutover) next.
 Resume file: None
