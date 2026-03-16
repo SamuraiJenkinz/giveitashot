@@ -31,12 +31,12 @@ Requirements for Graph API migration. Each maps to roadmap phases.
 
 ### Cleanup & Cutover
 
-- [ ] **CLEAN-01**: exchangelib dependency removed from requirements.txt
-- [ ] **CLEAN-02**: ews_client.py replaced with graph_client.py
-- [ ] **CLEAN-03**: main.py imports updated to use GraphClient
-- [ ] **CLEAN-04**: EWS-specific config vars removed
-- [ ] **CLEAN-05**: Test mocks updated from EWS objects to Graph JSON fixtures
-- [ ] **CLEAN-06**: All existing tests pass with Graph implementation
+- [x] **CLEAN-01**: exchangelib dependency removed from requirements.txt
+- [x] **CLEAN-02**: ews_client.py replaced with graph_client.py
+- [x] **CLEAN-03**: main.py imports updated to use GraphClient
+- [x] **CLEAN-04**: EWS-specific config vars removed
+- [x] **CLEAN-05**: Test mocks updated from EWS objects to Graph JSON fixtures
+- [x] **CLEAN-06**: All existing tests pass with Graph implementation
 
 ## Future Requirements
 
@@ -84,12 +84,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEND-02 | Phase 7 | Complete |
 | SEND-03 | Phase 7 | Complete |
 | SEND-04 | Phase 7 | Complete |
-| CLEAN-01 | Phase 8 | Pending |
-| CLEAN-02 | Phase 8 | Pending |
-| CLEAN-03 | Phase 8 | Pending |
-| CLEAN-04 | Phase 8 | Pending |
-| CLEAN-05 | Phase 8 | Pending |
-| CLEAN-06 | Phase 8 | Pending |
+| CLEAN-01 | Phase 8 | Complete |
+| CLEAN-02 | Phase 8 | Complete |
+| CLEAN-03 | Phase 8 | Complete |
+| CLEAN-04 | Phase 8 | Complete |
+| CLEAN-05 | Phase 8 | Complete |
+| CLEAN-06 | Phase 8 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 19 total
@@ -98,4 +98,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after Phase 7 completion (READ-01 through READ-05, SEND-01 through SEND-04 complete)*
+*Last updated: 2026-03-15 after Phase 8 completion (CLEAN-01 through CLEAN-06 complete — all v2.0 requirements done)*

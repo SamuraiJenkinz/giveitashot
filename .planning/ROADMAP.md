@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 Major Updates Digest** - Phases 1-5 (shipped 2026-02-26)
-- 🚧 **v2.0 Graph API Migration** - Phases 6-8 (in progress)
+- ✅ **v2.0 Graph API Migration** - Phases 6-8 (shipped 2026-03-15)
 
 ## Phases
 
@@ -56,7 +56,7 @@ Plans:
 
 ---
 
-### 🚧 v2.0 Graph API Migration (In Progress)
+### ✅ v2.0 Graph API Migration (Shipped 2026-03-15)
 
 **Milestone Goal:** Replace EWS (exchangelib) with Microsoft Graph REST API for all email operations before the August 2026 deprecation deadline. Pure functional swap — identical behavior, new transport layer. Zero new dependencies beyond removing exchangelib.
 
@@ -106,7 +106,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 08-01-PLAN.md — EWS removal, import rewiring, test migration, full regression
+- [x] 08-01-PLAN.md — EWS removal, import rewiring, test migration, full regression
 
 ---
 
@@ -124,4 +124,4 @@ Phases execute in numeric order: 6 → 7 → 8
 | 5. Integration Testing | v1.0 | 3/3 | Complete | 2026-02-26 |
 | 6. Auth Foundation | v2.0 | 1/1 | Complete | 2026-03-13 |
 | 7. Graph Client | v2.0 | 2/2 | Complete | 2026-03-13 |
-| 8. Cutover | v2.0 | 0/TBD | Not started | - |
+| 8. Cutover | v2.0 | 1/1 | Complete | 2026-03-15 |
