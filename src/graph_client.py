@@ -233,12 +233,12 @@ class GraphClient:
         sender_email = sender_addr.get("address") or "unknown@unknown.com"
 
         # Graph returns HTML by default; strip to plain text so classifier/summarizer
-        # continue receiving the same format they receive from the EWS path
+        # continue receiving the same format they have always received
         body_obj = msg.get("body") or {}
         raw_body = body_obj.get("content", "")
         body_content = self._strip_html(raw_body)
 
-        # Compute body_preview from stripped content (matches EWS behaviour)
+        # Compute body_preview from stripped content (first 200 chars of body_content)
         body_preview = body_content[:200]
 
         received_str = msg.get("receivedDateTime", "")
@@ -380,7 +380,7 @@ class GraphClient:
         def _make_recipient(addr: str) -> dict:
             return {"emailAddress": {"address": addr}}
 
-        # Log sender and recipient info (matching EWSClient pattern)
+        # Log sender and recipient info
         send_from = Config.get_send_from()
         logger.info(f"Sending email from {Config.SENDER_EMAIL}")
         if send_from and send_from != Config.SENDER_EMAIL:

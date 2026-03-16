@@ -8,9 +8,6 @@ from typing import Optional
 
 import msal
 
-# Kept for backward-compat get_ews_credentials() shim — remove when main.py migrates to Graph client (Phase 8)
-from exchangelib import OAuth2Credentials, Identity
-
 from .config import Config
 
 logger = logging.getLogger(__name__)
@@ -80,31 +77,8 @@ class GraphAuthenticator:
                 raise
             raise AuthenticationError(f"Authentication failed: {e}")
 
-    def get_ews_credentials(self) -> OAuth2Credentials:
-        """
-        Get EWS credentials for use with exchangelib.
-        BACKWARD-COMPAT SHIM — kept so main.py continues to work until Phase 8.
-        Remove when main.py migrates to Graph client.
-
-        Returns:
-            OAuth2Credentials: Credentials object for exchangelib.
-        """
-        self.get_access_token()  # Validates auth works (uses Graph scope now)
-
-        # Create OAuth2 credentials for exchangelib (app-only / client credentials)
-        credentials = OAuth2Credentials(
-            client_id=Config.CLIENT_ID,
-            client_secret=Config.CLIENT_SECRET,
-            tenant_id=Config.TENANT_ID,
-            identity=Identity(primary_smtp_address=Config.USER_EMAIL)
-        )
-        return credentials
-
     def clear_cache(self) -> None:
         """Clear the cached MSAL application instance (useful for troubleshooting)."""
         self._app = None
         logger.info("Token cache cleared")
 
-
-# Alias — remove when main.py is updated (Phase 8)
-EWSAuthenticator = GraphAuthenticator

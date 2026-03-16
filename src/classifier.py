@@ -7,7 +7,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from .ews_client import Email
+from .graph_client import Email
 
 logger = logging.getLogger(__name__)
 

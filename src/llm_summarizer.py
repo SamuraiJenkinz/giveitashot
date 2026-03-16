@@ -9,7 +9,7 @@ import httpx
 from typing import Optional
 
 from .config import Config
-from .ews_client import Email
+from .graph_client import Email
 
 logger = logging.getLogger(__name__)
 

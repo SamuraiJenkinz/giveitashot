@@ -37,14 +37,8 @@ class Config:
     CLIENT_ID: str = os.getenv("MICROSOFT_CLIENT_ID", "")
     CLIENT_SECRET: str = os.getenv("MICROSOFT_CLIENT_SECRET", "")
 
-    # EWS Server — Deprecated — used by ews_client.py until Phase 8 cutover
-    EWS_SERVER: str = os.getenv("EWS_SERVER", "outlook.office365.com")
-
     # Sender email address (shared mailbox sender)
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")
-
-    # Alias — remove when ews_client.py is decommissioned (Phase 8)
-    USER_EMAIL: str = SENDER_EMAIL
 
     # From address for sending (requires SendAs permission if different from SENDER_EMAIL)
     SEND_FROM: str = os.getenv("SEND_FROM", "")
@@ -107,12 +101,12 @@ class Config:
     def get_send_from(cls) -> str:
         """
         Get the From address for sending emails.
-        Uses SEND_FROM if set, otherwise falls back to USER_EMAIL.
+        Uses SEND_FROM if set, otherwise falls back to SENDER_EMAIL.
 
         Returns:
             Email address to use as the From address.
         """
-        return cls.SEND_FROM if cls.SEND_FROM else cls.USER_EMAIL
+        return cls.SEND_FROM if cls.SEND_FROM else cls.SENDER_EMAIL
 
     # Token cache file location
     TOKEN_CACHE_FILE: Path = Path(__file__).parent.parent / ".token_cache.json"

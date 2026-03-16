@@ -1,7 +1,7 @@
 """
 Email Summarizer Agent - Main Entry Point
 
-Reads emails from an Exchange Online shared mailbox using Exchange Web Services (EWS),
+Reads emails from an Exchange Online shared mailbox using Microsoft Graph API,
 generates a summary, and sends it to specified recipients.
 
 Supports incremental mode (default): only fetches emails since the last successful run.
@@ -21,10 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 from .action_extractor import ActionExtractor
-from .auth import EWSAuthenticator, AuthenticationError
+from .auth import GraphAuthenticator, AuthenticationError
 from .classifier import EmailClassifier
 from .config import Config
-from .ews_client import EWSClient, EWSClientError
+from .graph_client import GraphClient, GraphClientError
 from .extractor import MessageCenterExtractor
 from .state import StateManager
 from .summarizer import EmailSummarizer
@@ -42,10 +42,6 @@ def setup_logging(debug: bool = False) -> None:
             logging.StreamHandler(sys.stdout)
         ]
     )
-
-    # Reduce noise from exchangelib
-    if not debug:
-        logging.getLogger("exchangelib").setLevel(logging.WARNING)
 
 
 def _save_and_open_preview(html_content: str, digest_type: str, logger) -> None:
@@ -75,7 +71,7 @@ def main() -> int:
         int: Exit code (0 for success, 1 for error)
     """
     parser = argparse.ArgumentParser(
-        description="Email Summarizer Agent - Summarizes daily emails from a shared mailbox via EWS"
+        description="Email Summarizer Agent - Summarizes daily emails from a shared mailbox via Microsoft Graph API"
     )
     parser.add_argument(
         "--debug",
@@ -120,7 +116,7 @@ def main() -> int:
     logger = logging.getLogger(__name__)
 
     logger.info("=" * 60)
-    logger.info("Email Summarizer Agent Starting (EWS)")
+    logger.info("Email Summarizer Agent Starting (Graph API)")
     logger.info(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 60)
 
@@ -128,7 +124,7 @@ def main() -> int:
         # Validate configuration
         logger.info("Validating configuration...")
         Config.validate()
-        logger.info(f"User account: {Config.USER_EMAIL}")
+        logger.info(f"Sender account: {Config.SENDER_EMAIL}")
         logger.info(f"Send from: {Config.get_send_from()}")
         logger.info(f"Shared mailbox: {Config.SHARED_MAILBOX}")
 
@@ -142,21 +138,16 @@ def main() -> int:
 
         # Initialize authenticator
         logger.info("Initializing authentication...")
-        authenticator = EWSAuthenticator()
+        authenticator = GraphAuthenticator()
 
         # Clear cache if requested
         if args.clear_cache:
             logger.info("Clearing token cache...")
             authenticator.clear_cache()
 
-        # Get EWS credentials
-        logger.info("Acquiring EWS credentials...")
-        credentials = authenticator.get_ews_credentials()
-        logger.info("Authentication successful")
-
-        # Initialize EWS client
-        logger.info("Initializing EWS client...")
-        ews_client = EWSClient(credentials)
+        # Initialize Graph client
+        logger.info("Initializing Graph client...")
+        graph_client = GraphClient(authenticator)
 
         # Initialize state manager for incremental fetching
         state = StateManager()
@@ -179,7 +170,7 @@ def main() -> int:
 
         # Fetch emails from shared mailbox
         logger.info(f"Fetching emails from {Config.SHARED_MAILBOX}...")
-        emails = ews_client.get_shared_mailbox_emails(Config.SHARED_MAILBOX, since=since)
+        emails = graph_client.get_shared_mailbox_emails(Config.SHARED_MAILBOX, since=since)
 
         if not emails:
             logger.info("No new emails found - skipping summary")
@@ -245,7 +236,7 @@ def main() -> int:
                 else:
                     # Send the summary email
                     logger.info(f"Sending regular digest to {len(to_recipients)} recipient(s)...")
-                    ews_client.send_email(
+                    graph_client.send_email(
                         to_recipients=to_recipients,
                         subject=subject,
                         body_html=body_html,
@@ -331,7 +322,7 @@ def main() -> int:
                                 # Send the major digest email
                                 major_recipients = Config.get_major_recipients()
                                 logger.info(f"Sending major digest to {len(major_recipients)} recipient(s)...")
-                                ews_client.send_email(
+                                graph_client.send_email(
                                     to_recipients=major_recipients,
                                     subject=major_subject,
                                     body_html=major_html,
@@ -357,8 +348,8 @@ def main() -> int:
         logger.error("Please check your Azure AD app registration and credentials.")
         return 1
 
-    except EWSClientError as e:
-        logger.error(f"EWS error: {e}")
+    except GraphClientError as e:
+        logger.error(f"Graph API error: {e}")
         logger.error("Please verify you have access to the shared mailbox.")
         return 1
 

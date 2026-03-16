@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
 from .config import Config
-from .ews_client import Email
+from .graph_client import Email
 from .extractor import MajorUpdateFields, UrgencyTier
 
 if TYPE_CHECKING:
