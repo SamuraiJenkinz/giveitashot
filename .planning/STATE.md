@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Busy teams get a clear, actionable summary of their shared mailbox without reading every email
-**Current focus:** Phase 8 — Cutover (v2.0 Graph API Migration)
+**Current focus:** v2.0 Migration COMPLETE — all phases done
 
 ## Current Position
 
-Phase: 8 of 8 in v2.0 (Cutover)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — Phase 7 complete, verified (5/5 must-haves, 214 tests green)
+Phase: 8 of 8 in v2.0 (Cutover) — COMPLETE
+Plan: 1 of 1 in current phase — COMPLETE
+Status: v2.0 migration complete
+Last activity: 2026-03-15 — Completed 08-01-PLAN.md (EWS cutover, 210 tests green)
 
-Progress: [██████████░░░░] v1.0 complete, v2.0 Phases 6-7 done, Phase 8 next
+Progress: [██████████████] v1.0 complete, v2.0 Phases 6-7-8 done — migration COMPLETE
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [██████████░░░░] v1.0 complete, v2.0 Phase
 | 6. Auth Foundation | 06-01 | Complete | ~4 min |
 | 7. Graph Client | 07-01 | Complete | ~2 min |
 | 7. Graph Client | 07-02 | Complete | ~10 min |
+| 8. Cutover | 08-01 | Complete | ~13 min |
 
 ## Accumulated Context
 
@@ -52,9 +53,9 @@ Recent decisions affecting current work:
 - [v2.0 start]: Direct REST calls via `requests` + MSAL, not msgraph-sdk (async-only, daemon bug)
 - [v2.0 start]: Zero new dependencies — remove exchangelib, add nothing
 - [06-01]: Drop `acquire_token_silent` — MSAL 1.23+ handles internal caching in `acquire_token_for_client`; redundant call removed
-- [06-01]: `get_ews_credentials()` shim retained through Phase 7 — main.py line 154 depends on it; remove in Phase 8
-- [06-01]: `USER_EMAIL = SENDER_EMAIL` class-level alias documented with test — the alias is evaluated once at class definition; tests must update both independently
 - [06-01]: aud claim live verification deferred to integration testing — requires IT admin consent for Graph permissions (blocker still active)
+- [08-01]: GraphClient takes GraphAuthenticator directly — no OAuth2Credentials intermediary; simpler interface
+- [08-01]: EWS shim tests deleted outright (not updated) — shim functionality no longer exists; no equivalent to port
 - [07-01]: Email.id uses internetMessageId (RFC2822 stable) as primary, falls back to Graph internal id — stable across folder moves
 - [07-01]: HTML body fetched from Graph and stripped locally via _strip_html() (verbatim from ews_client.py) — preserves exact classifier/summarizer input format
 - [07-01]: params=None after first pagination page — @odata.nextLink is a complete URL; passing params again duplicates query parameters causing 400 errors
@@ -63,7 +64,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Phase 8 cleanup: Remove `EWSAuthenticator` alias, `get_ews_credentials()` shim, `USER_EMAIL` alias, `EWS_SERVER` from config
+None — v2.0 migration complete. All cleanup tasks executed in Phase 8.
 
 ### Blockers/Concerns
 
@@ -73,6 +74,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Phase 7 complete and verified. Phase 8 ready to plan.
+Last session: 2026-03-15
+Stopped at: Completed 08-01-PLAN.md — v2.0 migration complete, 210 tests green.
 Resume file: None
