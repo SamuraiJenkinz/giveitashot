@@ -626,15 +626,10 @@ class EmailSummarizer:
                 # Affected services
                 services_html = ""
                 if update.affected_services:
-                    services_pills = []
-                    for service in update.affected_services:
-                        services_pills.append(
-                            f'<span style="display: inline-block; background-color: {colors["bg_light"]}; color: {colors["text_medium"]}; font-size: 11px; padding: 4px 10px; border-radius: 12px; margin: 2px 4px 2px 0; border: 1px solid {colors["border"]};">{service}</span>'
-                        )
+                    services_list = ", ".join(update.affected_services)
                     services_html = f"""
                                                 <p style="margin: 8px 0 0 0; color: {colors['text_medium']}; font-size: 12px;">
-                                                    <strong>Services:</strong><br>
-                                                    {"".join(services_pills)}
+                                                    <strong>Services:</strong> {services_list}
                                                 </p>
 """
                 else:

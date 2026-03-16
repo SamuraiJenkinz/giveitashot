@@ -173,8 +173,11 @@ class GraphClient:
         """Strip HTML tags and decode entities from content."""
         if not html_content:
             return ""
+        # Remove style and script blocks (content + tags)
+        text = re.sub(r'<style[^>]*>.*?</style>', ' ', html_content, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r'<script[^>]*>.*?</script>', ' ', text, flags=re.DOTALL | re.IGNORECASE)
         # Remove HTML tags
-        text = re.sub(r'<[^>]+>', ' ', html_content)
+        text = re.sub(r'<[^>]+>', ' ', text)
         # Decode HTML entities
         text = unescape(text)
         # Normalize whitespace
