@@ -95,14 +95,14 @@ Plans:
 ---
 
 #### Phase 8: Cutover
-**Goal**: EWS is fully removed, `main.py` routes through `GraphClient`, and all 167 existing tests pass against the new implementation
+**Goal**: EWS is fully removed, `main.py` routes through `GraphClient`, and all 210 tests pass (214 pre-cutover minus 4 deleted EWS shim tests)
 **Depends on**: Phase 7
 **Requirements**: CLEAN-01, CLEAN-02, CLEAN-03, CLEAN-04, CLEAN-05, CLEAN-06
 **Success Criteria** (what must be TRUE):
   1. `exchangelib` does not appear in `requirements.txt` and cannot be imported from the codebase
   2. `src/ews_client.py` is replaced by `src/graph_client.py` — no EWS file remains in `src/`
   3. `python main.py --dry-run` executes without importing or referencing any EWS symbol
-  4. All 167 existing tests pass with import paths updated to `src.graph_client` — zero test logic changes required
+  4. All 210 tests pass with import paths updated to `src.graph_client` — zero test logic changes required
 **Plans**: 1 plan
 
 Plans:

@@ -19,7 +19,7 @@ from src.state import StateManager
 from src.classifier import EmailClassifier
 from src.extractor import MessageCenterExtractor
 from src.summarizer import EmailSummarizer
-from src.ews_client import Email
+from src.graph_client import Email
 from src.config import Config
 
 

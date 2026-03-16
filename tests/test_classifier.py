@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timezone
 
 from src.classifier import EmailClassifier, ClassificationResult
-from src.ews_client import Email
+from src.graph_client import Email
 
 
 class TestClassificationTruePositives:

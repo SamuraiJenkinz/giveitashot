@@ -8,7 +8,7 @@ from pathlib import Path
 from email import message_from_file
 from email.message import Message
 
-from src.ews_client import Email
+from src.graph_client import Email
 from src.state import StateManager
 
 

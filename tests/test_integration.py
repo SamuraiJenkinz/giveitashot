@@ -1,13 +1,13 @@
 """
 Integration tests for the classification pipeline.
-Tests the classification system end-to-end without requiring live EWS connections.
+Tests the classification system end-to-end without requiring live API connections.
 """
 
 import pytest
 from datetime import datetime, timezone
 
 from src.classifier import EmailClassifier, ClassificationResult
-from src.ews_client import Email
+from src.graph_client import Email
 
 
 class TestClassificationPipeline:

@@ -6,7 +6,6 @@ Tests the major update digest configuration features including:
 - Email address parsing for MAJOR_UPDATE_TO/CC/BCC
 - Validation behavior when major digest is enabled/disabled
 - No fallback from MAJOR_UPDATE_TO to SUMMARY_TO
-- SENDER_EMAIL / USER_EMAIL alias handling
 """
 
 import pytest
@@ -20,11 +19,6 @@ def backup_config():
 
     Since Config uses class-level attributes loaded from environment at import time,
     we need to save and restore them for test isolation.
-
-    Note: USER_EMAIL and SENDER_EMAIL are backed up independently because the
-    class-level alias (USER_EMAIL = SENDER_EMAIL) is evaluated once at class
-    definition time. After that they are independent attributes — setting one
-    does NOT automatically update the other.
     """
     # Backup original values
     backup = {
@@ -32,7 +26,6 @@ def backup_config():
         "MAJOR_UPDATE_CC": Config.MAJOR_UPDATE_CC.copy(),
         "MAJOR_UPDATE_BCC": Config.MAJOR_UPDATE_BCC.copy(),
         "SENDER_EMAIL": Config.SENDER_EMAIL,
-        "USER_EMAIL": Config.USER_EMAIL,
     }
 
     yield
@@ -42,7 +35,6 @@ def backup_config():
     Config.MAJOR_UPDATE_CC = backup["MAJOR_UPDATE_CC"]
     Config.MAJOR_UPDATE_BCC = backup["MAJOR_UPDATE_BCC"]
     Config.SENDER_EMAIL = backup["SENDER_EMAIL"]
-    Config.USER_EMAIL = backup["USER_EMAIL"]
 
 
 def test_major_digest_disabled_when_no_recipients(backup_config):
@@ -102,7 +94,6 @@ def test_validate_passes_when_major_disabled(backup_config):
     Config.CLIENT_ID = "test-client"
     Config.CLIENT_SECRET = "test-secret"
     Config.SENDER_EMAIL = "user@test.com"
-    Config.USER_EMAIL = "user@test.com"
     Config.SUMMARY_TO = ["summary@test.com"]
 
     # Major digest disabled
@@ -121,7 +112,6 @@ def test_validate_passes_when_major_enabled_valid(backup_config):
     Config.CLIENT_ID = "test-client"
     Config.CLIENT_SECRET = "test-secret"
     Config.SENDER_EMAIL = "user@test.com"
-    Config.USER_EMAIL = "user@test.com"
     Config.SUMMARY_TO = ["summary@test.com"]
 
     # Valid major digest config
@@ -140,7 +130,6 @@ def test_validate_fails_invalid_major_cc(backup_config):
     Config.CLIENT_ID = "test-client"
     Config.CLIENT_SECRET = "test-secret"
     Config.SENDER_EMAIL = "user@test.com"
-    Config.USER_EMAIL = "user@test.com"
     Config.SUMMARY_TO = ["summary@test.com"]
 
     # Major digest enabled with invalid CC
@@ -162,7 +151,6 @@ def test_validate_fails_invalid_major_bcc(backup_config):
     Config.CLIENT_ID = "test-client"
     Config.CLIENT_SECRET = "test-secret"
     Config.SENDER_EMAIL = "user@test.com"
-    Config.USER_EMAIL = "user@test.com"
     Config.SUMMARY_TO = ["summary@test.com"]
 
     # Major digest enabled with invalid BCC
@@ -177,28 +165,3 @@ def test_validate_fails_invalid_major_bcc(backup_config):
     assert "bcc-missing-at-sign" in str(exc_info.value)
 
 
-def test_user_email_aliases_sender_email(backup_config):
-    """
-    Test that USER_EMAIL is an alias for SENDER_EMAIL.
-
-    The class-level alias is set at class definition time (USER_EMAIL = SENDER_EMAIL).
-    After that, both attributes exist independently. This test verifies:
-    1. Both attributes exist on Config.
-    2. When set to the same value (as happens during env loading), both return equal values.
-
-    Note: Direct assignment to Config.SENDER_EMAIL does NOT auto-update Config.USER_EMAIL
-    (class-level alias is evaluated once). Tests must update both attributes explicitly
-    when simulating the env-loading behaviour.
-    """
-    # Both attributes must exist
-    assert hasattr(Config, "SENDER_EMAIL"), "Config must have SENDER_EMAIL attribute"
-    assert hasattr(Config, "USER_EMAIL"), "Config must have USER_EMAIL attribute"
-
-    # Simulate what env loading does: both set to the same value
-    Config.SENDER_EMAIL = "alias@test.com"
-    Config.USER_EMAIL = "alias@test.com"
-
-    # Both should report the same value
-    assert Config.SENDER_EMAIL == "alias@test.com"
-    assert Config.USER_EMAIL == "alias@test.com"
-    assert Config.SENDER_EMAIL == Config.USER_EMAIL

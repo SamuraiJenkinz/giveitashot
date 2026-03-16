@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 
 from src.extractor import MessageCenterExtractor, MajorUpdateFields, UrgencyTier
-from src.ews_client import Email
+from src.graph_client import Email
 
 
 def _date_from_now(days: int) -> datetime:

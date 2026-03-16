@@ -1,23 +1,19 @@
 """
-Unit tests for GraphAuthenticator and backward-compat EWSAuthenticator alias.
+Unit tests for GraphAuthenticator.
 
 Tests cover:
 - GRAPH_SCOPE constant correctness
 - get_access_token() returns plain str bearer token
 - get_access_token() raises AuthenticationError on failure
-- get_access_token() uses Graph scope (not EWS scope)
+- get_access_token() uses Graph scope (not Exchange scope)
 - acquire_token_silent is NOT called (redundant per MSAL 1.23+)
-- EWSAuthenticator alias points to GraphAuthenticator
 - clear_cache() resets _app to None
-- get_ews_credentials() backward-compat shim returns OAuth2Credentials
-- get_ews_credentials() raises AuthenticationError when auth fails
 """
 
 import pytest
 from unittest.mock import MagicMock, patch, call
-from exchangelib import OAuth2Credentials
 
-from src.auth import GraphAuthenticator, EWSAuthenticator, AuthenticationError, GRAPH_SCOPE
+from src.auth import GraphAuthenticator, AuthenticationError, GRAPH_SCOPE
 from src.config import Config
 
 
@@ -31,7 +27,6 @@ def mock_config(monkeypatch):
     monkeypatch.setattr(Config, "TENANT_ID", "test-tenant-id")
     monkeypatch.setattr(Config, "CLIENT_ID", "test-client-id")
     monkeypatch.setattr(Config, "CLIENT_SECRET", "test-client-secret")
-    monkeypatch.setattr(Config, "USER_EMAIL", "sender@test.com")
 
 
 def test_graph_scope_is_correct():
@@ -112,11 +107,6 @@ def test_acquire_token_silent_not_called(mock_config):
         mock_app.acquire_token_silent.assert_not_called()
 
 
-def test_ews_authenticator_alias():
-    """EWSAuthenticator must be the same class as GraphAuthenticator (backward compat alias)."""
-    assert EWSAuthenticator is GraphAuthenticator
-
-
 def test_clear_cache_resets_app(mock_config):
     """clear_cache() must reset _app to None."""
     with patch("msal.ConfidentialClientApplication") as mock_msal:
@@ -130,38 +120,3 @@ def test_clear_cache_resets_app(mock_config):
         auth.clear_cache()
 
         assert auth._app is None
-
-
-def test_get_ews_credentials_returns_oauth2credentials(mock_config):
-    """
-    get_ews_credentials() backward-compat shim must return an OAuth2Credentials instance.
-    This preserves the contract that main.py line 154 depends on.
-    """
-    with patch("msal.ConfidentialClientApplication") as mock_msal:
-        mock_app = MagicMock()
-        mock_app.acquire_token_for_client.return_value = {"access_token": "test-token"}
-        mock_msal.return_value = mock_app
-
-        auth = GraphAuthenticator()
-        creds = auth.get_ews_credentials()
-
-    assert isinstance(creds, OAuth2Credentials)
-
-
-def test_get_ews_credentials_raises_on_auth_failure(mock_config):
-    """
-    get_ews_credentials() must raise AuthenticationError if get_access_token() fails.
-    The shim calls get_access_token() first to validate auth is working.
-    """
-    with patch("msal.ConfidentialClientApplication") as mock_msal:
-        mock_app = MagicMock()
-        mock_app.acquire_token_for_client.return_value = {
-            "error": "invalid_client",
-            "error_description": "Bad"
-        }
-        mock_msal.return_value = mock_app
-
-        auth = GraphAuthenticator()
-
-        with pytest.raises(AuthenticationError):
-            auth.get_ews_credentials()
